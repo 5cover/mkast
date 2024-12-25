@@ -1,12 +1,12 @@
 # Todo
 
-From the bottom-up.
+- [ ] Customize target (current config attr is not read)
+- [ ] Target-specific options
 
-- [ ] read from config file so options can be persisted on a per-project basis
-- [ ] C# target:
-  - [ ] Custom namespace
-  - [ ] Custom common properties
-  - [ ] Custom root type
-- [ ] Known type option
-- [ ] Target option and target-specific options
-- [ ] Use argparse
+- [x] read from config file so options can be persisted on a per-project basis
+- [x] C# target:
+  - [x] Custom namespace
+  - [x] Custom common properties
+  - [x] Custom root type
+- [x] Known type option
+- [x] Use argparse
