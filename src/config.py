@@ -22,15 +22,19 @@ def add_key(keys: dict, argp: ap.ArgumentParser, key: str, *args, **kwargs):
 
 
 def parse_args():
-    argp = ap.ArgumentParser('mkast')
+    argp = ap.ArgumentParser('mkast', description="""
+Generate an AST data structure from a language-agnostic description expressed in YAML.
+
+Options take predecence over values in the config file, if provided.
+""", formatter_class=ap.RawTextHelpFormatter)
 
     argp.add_argument('-c', '--config', type=ap.FileType(), help='config file')
     keys = {}
     add_key(keys, argp, 'input', 'input', nargs='?', type=str, help='input file (default stdin)')
-    add_key(keys, argp, 'root', '--root', help='override the config root node')
+    add_key(keys, argp, 'root', '--root', help='root node')
     add_key(keys, argp, 'target', '--target', help='target language')
     add_key(keys, argp, 'known_types', '--known-type', nargs='*', help='known type')
-    add_key(keys, argp, 'namespace', '--namespace', help="namespace'")
+    add_key(keys, argp, 'namespace', '--namespace', help="namespace")
     add_key(keys, argp, 'common_props', '--common-prop', nargs='*',
             type=lambda x: x.split(':', 1), help="common property: 'name:type'")
     a = argp.parse_args()
