@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
 from collections import OrderedDict
 from collections.abc import Callable, Iterable, Mapping
-from os import path
 from src.util import NodeKind, csl, cslq, is_do_not_touch
+from sys import argv, stdin
 from typing import TypeGuard
 import yaml
-from sys import argv
 
 from src.csharp import intro, enter_node, exit_node, conclusion
 
 AstNode = OrderedDict[str, 'AstNode | str'] | None
-
-Filename = path.dirname(path.realpath(__file__)) + '/nodes.yml'
 
 known_types = {'ident'}
 
@@ -21,13 +18,12 @@ opts = {'semantic': ('Scover.Psdc.StaticAnalysis', 'semantic_node', {'meta': 'se
 
 
 def main():
-    with open(Filename) as file:
-        loader = yaml.SafeLoader
-        loader.add_constructor(
-            yaml.resolver.Resolver.DEFAULT_MAPPING_TAG,
-            lambda loader, node: OrderedDict(loader.construct_pairs(node)),
-        )
-        ast: OrderedDict[str, AstNode] = yaml.load(file, loader)
+    loader = yaml.SafeLoader
+    loader.add_constructor(
+        yaml.resolver.Resolver.DEFAULT_MAPPING_TAG,
+        lambda loader, node: OrderedDict(loader.construct_pairs(node)),
+    )
+    ast: OrderedDict[str, AstNode] = yaml.load(stdin, loader)
 
     namespace, root, common_props = next(
         iter(v for k, v in opts.items() if k.startswith(argv[1] if len(argv) > 1 else 'abstract')))
