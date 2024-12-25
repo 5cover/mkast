@@ -12,9 +12,10 @@ AstNode = OrderedDict[str, 'AstNode | str'] | None
 
 known_types = {'ident'}
 
-opts = {'semantic': ('Scover.Psdc.StaticAnalysis', 'semantic_node', {'meta': 'semantic_metadata'}),
-        'abstract': ('Scover.Psdc.Parsing', 'node', {}), # {'location': 'range'}
-        }
+opts = {
+    'semantic': ('Scover.Psdc.StaticAnalysis', 'semantic_node', {'meta': 'semantic_metadata'}),
+    'abstract': ('Scover.Psdc.Parsing', 'node', {}),  # {'location': 'range'}
+}
 
 
 def main():
