@@ -20,7 +20,7 @@ def main():
         yaml.resolver.Resolver.DEFAULT_MAPPING_TAG,
         lambda loader, node: OrderedDict(loader.construct_pairs(node)),
     )
-    ast: OrderedDict[str, AstNode] = yaml.load(c.input_file, loader)
+    ast: OrderedDict[str, AstNode] = yaml.load(c.input_file, loader) or OrderedDict()
 
     lvl = intro(c.namespace, c.root, c.common_props)
     for name, node in ast.items():
