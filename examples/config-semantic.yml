@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=../schemas/config.json
+target: csharp
+known_types:
+  - ident
+namespace: Scover.Psdc.StaticAnalysis
+root: semantic_node
+common_props:
+  meta: semantic_metadata

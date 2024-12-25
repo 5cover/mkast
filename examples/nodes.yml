@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=../schemas/nodes.json
+greeting:
+  hello:
+  goodbye:
+hello:
+  a: =int?
+goodbye:
+  b: hello

@@ -5,7 +5,7 @@
   "type": "object",
   "propertyNames": {
     "type": "string",
-    "pattern": "^[a-z_][a-z_0-9]*$"
+    "pattern": "^[A-Za-z_]\\w*$"
   },
   "additionalProperties": {
     "oneOf": [
@@ -18,14 +18,14 @@
         "type": "object",
         "propertyNames": {
           "type": "string",
-          "pattern": "^[a-z_][a-z_0-9]*$"
+          "pattern": "^[A-Za-z_]\\w*$"
         },
         "additionalProperties": {
           "oneOf": [
             {
               "title": "property",
               "type": "string",
-              "pattern": "^=?([a-z_][a-z_0-9]*)(?:\\.[a-z_][a-z_0-9]*)*[?+*]*$"
+              "pattern": "^=?([A-Za-z_]\\w*)(?:\\.[A-Za-z_]\\w*)*[?+*]*$"
             },
             {
               "$ref": "#additionalProperties"

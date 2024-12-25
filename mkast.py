@@ -1,38 +1,33 @@
 #!/usr/bin/env python3
 from collections import OrderedDict
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Set
 from src.util import NodeKind, csl, cslq, is_do_not_touch
-from sys import argv, stdin
+from sys import stdin
 from typing import TypeGuard
 import yaml
+import src.config as cfg
 
-from src.csharp import intro, enter_node, exit_node, conclusion
+from src.targets.csharp import intro, enter_node, exit_node, conclusion
 
 AstNode = OrderedDict[str, 'AstNode | str'] | None
 
-known_types = {'ident'}
-
-opts = {
-    'semantic': ('Scover.Psdc.StaticAnalysis', 'semantic_node', {'meta': 'semantic_metadata'}),
-    'abstract': ('Scover.Psdc.Parsing', 'node', {}),  # {'location': 'range'}
-}
-
 
 def main():
+    c = cfg.parse_args()
+
     loader = yaml.SafeLoader
     loader.add_constructor(
         yaml.resolver.Resolver.DEFAULT_MAPPING_TAG,
         lambda loader, node: OrderedDict(loader.construct_pairs(node)),
     )
-    ast: OrderedDict[str, AstNode] = yaml.load(stdin, loader)
+    ast: OrderedDict[str, AstNode] = yaml.load(c.input_file, loader)
 
-    namespace, root, common_props = next(
-        iter(v for k, v in opts.items() if k.startswith(argv[1] if len(argv) > 1 else 'abstract')))
-    lvl = intro(namespace, root, common_props)
+    lvl = intro(c.namespace, c.root, c.common_props)
     for name, node in ast.items():
-        walk(lvl, (root, NodeKind.Union), ast, name, node,
-             lambda *args: enter_node(OrderedDict(common_props), *args),
-             exit_node)
+        walk(lvl, (c.root, NodeKind.Union), ast, name, node,
+             lambda *args: enter_node(c.common_props, *args),
+             exit_node,
+             c.known_types)
     conclusion()
 
 # todo: instead of visiting on the fly, build a datastructure and revisit. this means we'll be able to query the properties and subnodes of a node when generating it, which will allow for smarter code generation (semi-colon body)
@@ -42,7 +37,8 @@ def main():
 
 def walk(lvl: int, parent: tuple[str, NodeKind], reachable_nodes: OrderedDict[str, AstNode], name: str, node: AstNode,
          enter_node: Callable[[int, tuple[str, NodeKind], tuple[str, NodeKind], Mapping[str, NodeKind], Mapping[str, str]], None],
-         exit_node: Callable[[int], None]):
+         exit_node: Callable[[int], None],
+         known_types: Set[str]):
     implements = OrderedDict(((k, NodeKind.Union) for k in in_unions(reachable_nodes, name) if k != parent[0]))
     if node_is_union(node):
         if redefined_nodes := {k for k in node & reachable_nodes.keys() if node[k] is not None}:
@@ -51,7 +47,7 @@ def walk(lvl: int, parent: tuple[str, NodeKind], reachable_nodes: OrderedDict[st
         me = name, NodeKind.Union
         enter_node(lvl, parent, me, implements, {})
         for sub in ((k, v) for k, v in node.items() if k not in reachable_nodes.keys()):
-            walk(lvl + 1, me, node | reachable_nodes, *sub, enter_node, exit_node)
+            walk(lvl + 1, me, node | reachable_nodes, *sub, enter_node, exit_node, known_types)
         exit_node(lvl)
     else:
         if node is None:
@@ -61,17 +57,18 @@ def walk(lvl: int, parent: tuple[str, NodeKind], reachable_nodes: OrderedDict[st
         if redefined_subs := subs & reachable_nodes.keys():
             raise ValueError(f"redefined subnodes in '{name}': {cslq(redefined_subs)}")
         props = OrderedDict((k, v) for k, v in node.items() if isinstance(v, str))
-        if undef_type_props := tuple(f"'{k}' ('{v}')" for k, v in props.items() if not check_type(reachable_nodes, v)):
+        if undef_type_props := tuple(f"'{k}' ('{v}')" for k, v in props.items() if not check_type(
+                known_types, reachable_nodes, v)):
             raise ValueError(f"properties of undefined type in '{name}': {csl(undef_type_props)}")
 
         me = name, NodeKind.Class
         enter_node(lvl, parent, me, implements, props)
         for sub in subs.items():
-            walk(lvl + 1, me, subs | reachable_nodes, *sub, enter_node, exit_node)
+            walk(lvl + 1, me, subs | reachable_nodes, *sub, enter_node, exit_node, known_types)
         exit_node(lvl)
 
 
-def check_type(reachable_nodes: OrderedDict[str, AstNode], ptype: str) -> bool:
+def check_type(known_types: Set[str], reachable_nodes: OrderedDict[str, AstNode], ptype: str) -> bool:
     realtype = ptype.rstrip('*+?')
     if is_do_not_touch(ptype) or realtype in known_types:
         return True
@@ -79,8 +76,10 @@ def check_type(reachable_nodes: OrderedDict[str, AstNode], ptype: str) -> bool:
     if len(s) == 1:
         return s[0] in reachable_nodes.keys()
     first, others = s
-    return check_type(reachable_nodes, first) and check_type(
-        reachable_nodes | subnodes(reachable_nodes.get(first, None)), others)
+    return check_type(
+        known_types, reachable_nodes, first) and check_type(
+        known_types, reachable_nodes | subnodes(reachable_nodes.get(first, None)),
+        others)
 
 
 def subnodes(node: AstNode) -> OrderedDict[str, AstNode]:

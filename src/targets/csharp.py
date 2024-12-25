@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from itertools import chain
 from collections.abc import Iterable, Mapping
-from .util import camelize, println, pascalize, NodeKind, csl, cslq, get_dont_touch_me, remove_prefix
+from ..util import camelize, println, pascalize, NodeKind, csl, cslq, get_dont_touch_me, remove_prefix
 from functools import cache
 
 Keywords = {
@@ -16,7 +16,7 @@ Keywords = {
 NodeKinds = {NodeKind.Class: 'sealed class', NodeKind.Union: 'interface'}
 
 
-def intro(namespace: str, root: str, common_props: dict[str, str]):
+def intro(namespace: str, root: str, common_props: Mapping[str, str]):
     print('using System.Diagnostics;')
     print()
     print(f'namespace {namespace};')
