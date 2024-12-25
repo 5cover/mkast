@@ -4,6 +4,8 @@ Generate an AST data structure from a language-agnostic description expressed in
 
 [Input schema](https://raw.githubusercontent.com/5cover/ast-gen/refs/heads/main/schemas/nodes.json)
 
+[Config schema](https://raw.githubusercontent.com/5cover/ast-gen/refs/heads/main/schemas/config.json)
+
 ## Usage
 
 `./ast.py < input.yml`
