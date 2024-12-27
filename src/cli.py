@@ -25,7 +25,6 @@ Options take predecence over values in the config file, if provided.
 
     keys = {'input', 'modifiers'}
 
-
     argp.add_argument('input', nargs='?', help='input file (default stdin)')
 
     def add_opt(key: str, *args, **kwargs):
@@ -38,29 +37,29 @@ Options take predecence over values in the config file, if provided.
     add_opt('namespace', '--namespace', help="namespace")
 
     a = argp.parse_args()
-    cfg = {}
+    config = {}
 
     if a.config:
-        cfg = yaml.safe_load(a.config)
+        config = yaml.safe_load(a.config)
 
     for key in keys:
         attr = getattr(a, key, None)
         if attr is None:
-            if key in key_defaults:
-                cfg[key] = key_defaults[key]
-            elif key not in cfg:
-                argp.error(f"Missing option: '{key}'")
+            if key not in config:
+                if key not in key_defaults:
+                    argp.error(f"Missing option: '{key}'")
+                config[key] = key_defaults[key]
         else:
-            cfg[key] = attr
+            config[key] = attr
 
     cfg = Config(
-        ap.FileType()(cfg['input']),
-        cfg['target'],
-        set(cfg['known_types']),
-        OrderedDict(cfg['common_props']),
-        cfg['root'],
-        cfg['namespace'],
-        {k: Modifier() if v is None else Modifier(**v) for k, v in cfg['modifiers'].items()},
+        ap.FileType()(config['input']),
+        config['target'],
+        set(config['known_types']),
+        OrderedDict(config['common_props']),
+        config['root'],
+        config['namespace'],
+        {k: Modifier() if v is None else Modifier(**v) for k, v in config['modifiers'].items()},
     )
 
     try:
@@ -69,6 +68,7 @@ Options take predecence over values in the config file, if provided.
         argp.error(f"unknown target '{cfg.target}'")
 
     return cfg, emitter
+
 
 def prop(input: str) -> tuple[str, str]:
     s = input.split(':', 1)

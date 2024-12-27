@@ -2,12 +2,12 @@
 target: csharp
 known_types:
   - ident
-#namespace: Scover.Psdc.Parsing
+namespace: Scover.Psdc.Parsing
 modifiers:
   ?:
     type: Option<$1>
     when: $1.HasValue
     unwrap: $1.Value
 root: node
-#common_props:
-#  location: range
+common_props:
+  location: range
