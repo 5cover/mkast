@@ -18,3 +18,6 @@ def cslq(iterable: Iterable[str]) -> str:
 def csl(iterable: Iterable[str]) -> str:
     """Comma Separated List"""
     return ', '.join(iterable)
+
+def sub_var(pattern: str, num: int, arg: str):
+    return pattern.replace(f'${num}', arg)

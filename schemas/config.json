@@ -35,6 +35,11 @@
       "type": "string",
       "pattern": "^([A-Za-z_]\\w*)(?:\\.[A-Za-z_]\\w*)*$"
     },
+    "assertion": {
+      "type": "string",
+      "description": "Code to generate for an assertion. $1 is replaced by the boolean expression to assert",
+      "pattern": "\\$1"
+    },
     "modifiers": {
       "type": "object",
       "properties": {
@@ -65,20 +70,20 @@
         },
         "must": {
           "title": "must",
-          "description": "The validation expression. A boolean expression that validates the value. $1 is replaced by the value.",
+          "description": "The \"must\" expression. A boolean expression that validates the value. $1 is replaced by the name of the variable to check.",
           "type": "string",
           "pattern": "\\$1"
         },
-        "when": {
-          "title": "validate",
-          "description": "The unwrapping when expression. A boolean expression that indicates when it is valid to unwrap the value.",
+        "none_when": {
+          "title": "none_when",
+          "description": "The \"none when\" expression. A boolean expression that indicates when it is invalid to unwrap the value. $1 is replaced by the name of the variable to check.",
           "type": "string",
           "pattern": "\\$1"
         },
         "unwrap": {
           "type": "string",
           "title": "unwrap",
-          "description": "The unwrapping expression. $1 is replaced by the haystack value.",
+          "description": "The unwrapping expression. $1 is replaced by the haystack value. $1 is replaced by the name of the variable to check. $2 is replaced by the inner expression (based on $1)",
           "pattern": "\\$1"
         }
       }

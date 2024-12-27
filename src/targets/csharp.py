@@ -1,5 +1,5 @@
-from src.domain import Config, Emitter, NodeInfo, NodeKind, camelize, pascalize, get_dont_touch_me
-from src.util import println, csl, cslq, remove_prefix
+from src.domain import Config, Emitter, Modifier, ModifierKey, NodeInfo, NodeKind, camelize, pascalize, get_dont_touch_me
+from src.util import println, csl, cslq, remove_prefix, sub_var
 
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
@@ -20,13 +20,26 @@ NodeKinds = {NodeKind.Class: 'sealed class', NodeKind.Union: 'interface'}
 
 class CSharpEmitter(Emitter):
     def __init__(self, cfg: Config):
-        # self.type_opt, self.valid_opt = cfg.type_opt[0] or '$1?', cfg.type_opt[1]
-        # self.type_plus, self.valid_opt = cfg.type_plus[0] or 'IReadOnlyList<$1>', cfg.type_plus[1] or '$1.Count > 0 && $1.All($2)'
-        # self.type_star, self.valid_star = cfg.type_star[0] or 'IReadOnlyList<$1>', cfg.type_star[1] or '$1.All($2)'
         super().__init__(cfg)
 
+        self.usings = []
+
+        if cfg.assertion:
+            self.assertion = cfg.assertion
+        else:
+            self.usings.append('System.Diagnotics')
+            self.assertion = 'Debug.Assert($1)'
+
+        self.modifiers: dict[ModifierKey, Modifier] = {
+            '?': cfg.modifiers.get('?', Modifier('$1?', none_when='$1 is null')),
+            '1': cfg.modifiers.get('1', Modifier()),
+            '+': cfg.modifiers.get('+', Modifier('IReadOnlyList<$1>', '$1.Count > 0', unwrap='$1.All($1 => $2)')),
+            '*': cfg.modifiers.get('*', Modifier('IReadOnlyList<$1>', unwrap='$1.All($1 => $2)')),
+        }
+
     def intro(self):
-        print('using System.Diagnostics;')
+        for using in self.usings:
+            print(f'using {using};')
         print()
         if self.cfg.namespace:
             print(f'namespace {self.cfg.namespace};')
@@ -34,7 +47,7 @@ class CSharpEmitter(Emitter):
         print(f'public interface {pascalize(self.cfg.root)}')
         print('{')
         for p in self.cfg.common_props.items():
-            put_prop(1, self.cfg.root, *p)
+            self.put_prop(1, self.cfg.root, *p)
         return 1
 
     def enter_node(self,
@@ -48,12 +61,12 @@ class CSharpEmitter(Emitter):
 
         props = OrderedDict(chain(self.cfg.common_props.items(), props.items()))
 
-        require_explicit_constructor = any((requires_validation(t) for t in props.values()))
+        require_explicit_constructor = any((self.requires_validation(t) for t in props.values()))
 
         println(lvl, f'public {NodeKinds[node.kind]} {pascalize(node.name)}', end='')
 
         if node.kind is NodeKind.Class and props and not require_explicit_constructor:
-            print(f'({csl(map(argument, props.items()))})', end='')
+            print(f'({csl(map(self.argument, props.items()))})', end='')
 
         print(base_type_list((parent.name,) + tuple(implements.keys())
                              if parent.kind is NodeKind.Union else
@@ -63,16 +76,16 @@ class CSharpEmitter(Emitter):
         lvl += 1
         if node.kind is NodeKind.Class and props:
             if require_explicit_constructor:
-                println(lvl, f'public {pascalize(node.name)}({csl(map(argument, props.items()))})')
+                println(lvl, f'public {pascalize(node.name)}({csl(map(self.argument, props.items()))})')
                 println(lvl, '{')
                 for p in props.items():
-                    put_assignment(lvl + 1, *p)
+                    self.put_assignment(lvl + 1, *p)
                 println(lvl, '}')
                 for p in props.items():
-                    put_prop(lvl, node.name, *p, 'public')
+                    self.put_prop(lvl, node.name, *p, 'public')
             else:
                 for p in props.items():
-                    put_prop(lvl, node.name, *p, 'public', True)
+                    self.put_prop(lvl, node.name, *p, 'public', True)
 
     def exit_node(self, lvl: int):
         println(lvl, '}')
@@ -80,57 +93,54 @@ class CSharpEmitter(Emitter):
     def conclusion(self):
         print('}')
 
+    def argument(self, prop: tuple[str, str]):
+        return f'{self.real_type(prop[1])} {camel_ident(prop[0])}'
 
-def argument(prop: tuple[str, str]):
-    return f'{real_type(prop[1])} {camel_ident(prop[0])}'
+    def put_assignment(self, lvl: int, name: str, type: str):
+        if vexpr := self.validation_expr(camel_ident(name), type):
+            println(lvl, f'Debug.Assert({vexpr});')
+        println(lvl, f'{pascalize(name)} = {camel_ident(name)};')
+
+    def put_prop(self, lvl: int, owner: str, name: str, type: str, access: str = '', put_init: bool = False):
+        access = access + ' ' if access else ''
+        init = ' = ' + camel_ident(name) + ';' if put_init else ''
+        println(lvl, f'{access}{self.real_type(remove_prefix(owner + ".", type))} {pascalize(name)} {{ get; }}{init}')
+
+    def real_type(self, type: str) -> str:
+        if type[-1] not in self.modifiers:
+            return pascalize(type)
+        m = self.modifiers[type[-1]]
+        return sub_var(m.type, 1, self.real_type(type[:-1]))
+
+    def validation_expr(self, name: str, type: str):
+        if type[-1] not in self.modifiers:
+            return ''
+        m = self.modifiers[type[-1]]
+
+        # {none_when} || {must} && {unwrap}
+        none_when = sub_var(m.none_when or '', 1, name)
+        must = sub_var(m.must or '', 1, name)
+
+        if '$2' in m.unwrap:
+            #$1.All($1 => $2)
+            # $2: inner
+            # $1: name
+            inner = self.validation_expr(name, type[:-1])
+            unwrap = sub_var(sub_var(m.unwrap, 1, name), 2, inner)
+        else:
+            name = sub_var(m.unwrap, 1, name)
+            unwrap = self.validation_expr(name, type[:-1])
+
+        r = ' || '.join(filter(None, (none_when, must)))
+        return ' && '.join(filter(None, (r, unwrap)))
+
+    def requires_validation(self, type: str):
+        validating_modifiers = {k for k, v in self.modifiers.items() if v.must}
+        return any(c in validating_modifiers for c in type)
 
 
 def base_type_list(bases: Iterable[str]):
     return ' : ' + csl(map(pascalize, bases)) if bases else ''
-
-
-def put_assignment(lvl: int, name: str, type: str):
-    if vexpr := validation_expr(camel_ident(name), type):
-        println(lvl, f'Debug.Assert({vexpr});')
-    println(lvl, f'{pascalize(name)} = {camel_ident(name)};')
-
-
-def put_prop(lvl: int, owner: str, name: str, type: str, access: str = '', put_init: bool = False):
-    access = access + ' ' if access else ''
-    init = ' = ' + camel_ident(name) + ';' if put_init else ''
-    println(lvl, f'{access}{real_type(remove_prefix(owner + ".", type))} {pascalize(name)} {{ get; }}{init}')
-
-
-@cache
-def real_type(type: str) -> str:
-    match type[-1]:
-        case '?': return f'{real_type(type[:-1])}?'
-        case '+': return f'IReadOnlyList<{real_type(type[:-1])}>'
-        case '*': return f'IReadOnlyList<{real_type(type[:-1])}>'
-        case _: return pascalize(type)
-
-
-@cache
-def validation_expr(name: str, type: str):
-    match type[-1]:
-        case '?':
-            inner = validation_expr(name + '.Value', type[:-1])
-            return f'!{name}.HasValue || {inner}' if inner else ''
-        case '+':
-            inner = validation_expr(name, type[:-1])
-            return f'{name}.Count > 0' + (f' && {name}.All({name} => {inner})' if inner else '')
-        case '*':
-            inner = validation_expr(name, type[:-1])
-            return f'{name}.All({name} => {inner})' if inner else ''
-        case _: return ''
-
-
-def requires_validation(type: str):
-    return '+' in type
-
-
-def sub_pattern(needle: str, pattern: str):
-    return pattern.replace('$1', needle)
 
 
 def camel_ident(name: str):

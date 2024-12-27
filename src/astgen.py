@@ -14,7 +14,8 @@ emitters = {
 
 
 def get_emitter(cfg: Config):
-    return emitters[cfg.target](cfg)
+    cls = emitters.get(cfg.target, None)
+    return None if cls is None else cls(cfg)
 
 
 def generate_ast(cfg: Config, emitter: Emitter, ast: AstUnionNode):

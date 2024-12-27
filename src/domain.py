@@ -11,7 +11,6 @@ AstUnionNode = OrderedDict[str, AstNode]
 
 ModifierKey = Literal['1', '?', '+', '*']
 
-
 class NodeKind(Enum):
     Union = 'union'
     Class = 'class'
@@ -27,7 +26,7 @@ class NodeInfo:
 class Modifier:
     type: str = '$1'
     must: str | None = None
-    when: str | None = None
+    none_when: str | None = None
     unwrap: str = '$1'
 
 
@@ -39,6 +38,7 @@ class Config:
     common_props: OrderedDict[str, str]
     root: str
     namespace: str | None
+    assertion: str | None
     modifiers: Mapping[ModifierKey, Modifier]
 
 

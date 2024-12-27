@@ -3,6 +3,6 @@ greeting:
   hello:
   goodbye:
 hello:
-  a: =int?
+  a: goodbye?+
 goodbye:
   b: hello

@@ -21,6 +21,7 @@ Options take predecence over values in the config file, if provided.
         'common_props': {},
         'modifiers': {},
         'namespace': None,
+        'assertion': None,
     }
 
     keys = {'input', 'modifiers'}
@@ -34,7 +35,8 @@ Options take predecence over values in the config file, if provided.
     add_opt('known_types', '--known-type', nargs='*', help='known type')
     add_opt('common_props', '--common-prop', nargs='*', type=prop, help="common property: 'name:type'")
     add_opt('root', '--root', help='root node')
-    add_opt('namespace', '--namespace', help="namespace")
+    add_opt('namespace', '--namespace', help='namespace')
+    add_opt('assertion', '--assertion', help='code for an assertion. $1 is replaced by the boolean expression to assert')
 
     a = argp.parse_args()
     config = {}
@@ -59,12 +61,11 @@ Options take predecence over values in the config file, if provided.
         OrderedDict(config['common_props']),
         config['root'],
         config['namespace'],
-        {k: Modifier() if v is None else Modifier(**v) for k, v in config['modifiers'].items()},
+        config['assertion'],
+        {k: Modifier(**v) for k, v in config['modifiers'].items()},
     )
 
-    try:
-        emitter = get_emitter(cfg)
-    except KeyError:
+    if (emitter := get_emitter(cfg)) is None:
         argp.error(f"unknown target '{cfg.target}'")
 
     return cfg, emitter
