@@ -34,6 +34,54 @@
     "namespace": {
       "type": "string",
       "pattern": "^([A-Za-z_]\\w*)(?:\\.[A-Za-z_]\\w*)*$"
+    },
+    "modifiers": {
+      "type": "object",
+      "properties": {
+        "?": {
+          "$ref": "#/definitions/modifier"
+        },
+        "1": {
+          "$ref": "#/definitions/modifier"
+        },
+        "+": {
+          "$ref": "#/definitions/modifier"
+        },
+        "*": {
+          "$ref": "#/definitions/modifier"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "modifier": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "title": "type",
+          "description": "The type name. $1 is replaced by the payload type.",
+          "type": "string",
+          "pattern": "\\$1"
+        },
+        "must": {
+          "title": "must",
+          "description": "The validation expression. A boolean expression that validates the value. $1 is replaced by the value.",
+          "type": "string",
+          "pattern": "\\$1"
+        },
+        "when": {
+          "title": "validate",
+          "description": "The unwrapping when expression. A boolean expression that indicates when it is valid to unwrap the value.",
+          "type": "string",
+          "pattern": "\\$1"
+        },
+        "unwrap": {
+          "type": "string",
+          "title": "unwrap",
+          "description": "The unwrapping expression. $1 is replaced by the haystack value.",
+          "pattern": "\\$1"
+        }
+      }
     }
   }
 }

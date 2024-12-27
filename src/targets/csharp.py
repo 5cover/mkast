@@ -1,8 +1,10 @@
+from src.domain import Config, Emitter, NodeInfo, NodeKind, camelize, pascalize, get_dont_touch_me
+from src.util import println, csl, cslq, remove_prefix
+
 from collections import OrderedDict
-from itertools import chain
 from collections.abc import Iterable, Mapping
-from ..util import camelize, println, pascalize, NodeKind, csl, cslq, get_dont_touch_me, remove_prefix
 from functools import cache
+from itertools import chain
 
 Keywords = {
     'abstract', 'as', 'base', 'bool', 'break', 'byte', 'case', 'catch', 'char', 'checked', 'class', 'const', 'continue',
@@ -16,57 +18,68 @@ Keywords = {
 NodeKinds = {NodeKind.Class: 'sealed class', NodeKind.Union: 'interface'}
 
 
-def intro(namespace: str, root: str, common_props: Mapping[str, str]):
-    print('using System.Diagnostics;')
-    print()
-    print(f'namespace {namespace};')
-    print()
-    print(f'public interface {pascalize(root)}')
-    print('{')
-    for p in common_props.items():
-        put_prop(1, root, *p)
-    print()
-    return 1
+class CSharpEmitter(Emitter):
+    def __init__(self, cfg: Config):
+        # self.type_opt, self.valid_opt = cfg.type_opt[0] or '$1?', cfg.type_opt[1]
+        # self.type_plus, self.valid_opt = cfg.type_plus[0] or 'IReadOnlyList<$1>', cfg.type_plus[1] or '$1.Count > 0 && $1.All($2)'
+        # self.type_star, self.valid_star = cfg.type_star[0] or 'IReadOnlyList<$1>', cfg.type_star[1] or '$1.All($2)'
+        super().__init__(cfg)
 
+    def intro(self):
+        print('using System.Diagnostics;')
+        print()
+        if self.cfg.namespace:
+            print(f'namespace {self.cfg.namespace};')
+            print()
+        print(f'public interface {pascalize(self.cfg.root)}')
+        print('{')
+        for p in self.cfg.common_props.items():
+            put_prop(1, self.cfg.root, *p)
+        print()
+        return 1
 
-def conclusion():
-    print('}')
+    def enter_node(self,
+                   lvl: int,
+                   parent: NodeInfo,
+                   node: NodeInfo,
+                   implements: Mapping[str, NodeKind],
+                   props: Mapping[str, str]):
+        if reserved_props := props & self.cfg.common_props.keys():
+            raise ValueError(f"reserved propety names in '{node.name}': {cslq(reserved_props)}")
 
+        props = OrderedDict(chain(self.cfg.common_props.items(), props.items()))
 
-def enter_node(
-        common_props: Mapping[str, str],
-        lvl: int,
-        parent: tuple[str, NodeKind],
-        node: tuple[str, NodeKind],
-        implements: Mapping[str, NodeKind],
-        props: Mapping[str, str]):
-    if reserved_props := props & common_props.keys():
-        raise ValueError(f"reserved propety names in '{node[0]}': {cslq(reserved_props)}")
+        require_explicit_constructor = any((requires_validation(t) for t in props.values()))
 
-    props = OrderedDict(chain(common_props.items(), props.items()))
-    require_explicit_constructor = any((requires_validation(t) for t in props.values()))
-    println(lvl, f'public {NodeKinds[node[1]]} {pascalize(node[0])}', end='')
-    if node[1] is NodeKind.Class and props and not require_explicit_constructor:
-        print(f'({csl(map(argument, props.items()))})', end='')
-    print(base_type_list((parent[0],) + tuple(implements.keys()) if parent[1] is NodeKind.Union else implements))
-    println(lvl, '{')
-    lvl += 1
-    if node[1] is NodeKind.Class and props:
-        if require_explicit_constructor:
-            println(lvl, f'public {pascalize(node[0])}({csl(map(argument, props.items()))})')
-            println(lvl, '{')
-            for p in props.items():
-                put_assignment(lvl + 1, *p)
-            println(lvl, '}')
-            for p in props.items():
-                put_prop(lvl, node[0], *p, 'public')
-        else:
-            for p in props.items():
-                put_prop(lvl, node[0], *p, 'public', True)
+        println(lvl, f'public {NodeKinds[node.kind]} {pascalize(node.name)}', end='')
 
+        if node.kind is NodeKind.Class and props and not require_explicit_constructor:
+            print(f'({csl(map(argument, props.items()))})', end='')
 
-def exit_node(lvl: int):
-    println(lvl, '}')
+        print(base_type_list((parent.name,) + tuple(implements.keys())
+                             if parent.kind is NodeKind.Union else
+                             implements))
+        println(lvl, '{')
+
+        lvl += 1
+        if node.kind is NodeKind.Class and props:
+            if require_explicit_constructor:
+                println(lvl, f'public {pascalize(node.name)}({csl(map(argument, props.items()))})')
+                println(lvl, '{')
+                for p in props.items():
+                    put_assignment(lvl + 1, *p)
+                println(lvl, '}')
+                for p in props.items():
+                    put_prop(lvl, node.name, *p, 'public')
+            else:
+                for p in props.items():
+                    put_prop(lvl, node.name, *p, 'public', True)
+
+    def exit_node(self, lvl: int):
+        println(lvl, '}')
+
+    def conclusion(self):
+        print('}')
 
 
 def argument(prop: tuple[str, str]):
@@ -77,20 +90,16 @@ def base_type_list(bases: Iterable[str]):
     return ' : ' + csl(map(pascalize, bases)) if bases else ''
 
 
-def put_prop(lvl: int, owner: str, name: str, type: str, access: str = '', put_init: bool = False):
-    access = access + ' ' if access else ''
-    init = ' = ' + camel_ident(name) + ';' if put_init else ''
-    println(lvl, f'{access}{real_type(remove_prefix(owner + ".", type))} {pascalize(name)} {{ get; }}{init}')
-
-
 def put_assignment(lvl: int, name: str, type: str):
     if vexpr := validation_expr(camel_ident(name), type):
         println(lvl, f'Debug.Assert({vexpr});')
     println(lvl, f'{pascalize(name)} = {camel_ident(name)};')
 
 
-def requires_validation(type: str):
-    return '+' in type
+def put_prop(lvl: int, owner: str, name: str, type: str, access: str = '', put_init: bool = False):
+    access = access + ' ' if access else ''
+    init = ' = ' + camel_ident(name) + ';' if put_init else ''
+    println(lvl, f'{access}{real_type(remove_prefix(owner + ".", type))} {pascalize(name)} {{ get; }}{init}')
 
 
 @cache
@@ -115,6 +124,14 @@ def validation_expr(name: str, type: str):
             inner = validation_expr(name, type[:-1])
             return f'{name}.All({name} => {inner})' if inner else ''
         case _: return ''
+
+
+def requires_validation(type: str):
+    return '+' in type
+
+
+def sub_pattern(needle: str, pattern: str):
+    return pattern.replace('$1', needle)
 
 
 def camel_ident(name: str):

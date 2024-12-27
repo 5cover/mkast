@@ -1,7 +1,8 @@
 # Todo
 
-- [ ] Customize target (current config attr is not read)
+- [x] Customize target (current config attr is not read)
 - [ ] Target-specific options
+- [ ] Configure modifiers (config is read (untested), but not used)
 
 - [x] read from config file so options can be persisted on a per-project basis
 - [x] C# target:
