@@ -1,5 +1,5 @@
 from src.domain import Config, Emitter, NodeInfo, NodeKind, AstNode, AstUnionNode, is_do_not_touch
-from src.util import csl, cslq
+from src.util import csl, cslq, none_map
 from src.targets.agnostic import AgnosticEmitter
 from src.targets.csharp import CSharpEmitter
 
@@ -19,9 +19,10 @@ def get_emitter(cfg: Config):
 
 
 def generate_ast(cfg: Config, emitter: Emitter, ast: AstUnionNode):
+    root_node_info = none_map(cfg.root, lambda r: NodeInfo(r, NodeKind.Union))
     lvl = emitter.intro()
     for name, node in ast.items():
-        walk(emitter, lvl, NodeInfo(cfg.root, NodeKind.Union), ast, name, node)
+        walk(emitter, lvl, root_node_info, ast, name, node)
     emitter.conclusion()
 
 # todo: instead of visiting on the fly, build a datastructure and revisit. this means we'll be able to query the properties and subnodes of a node when generating it, which will allow for smarter code generation (semi-colon body)
@@ -31,7 +32,7 @@ def generate_ast(cfg: Config, emitter: Emitter, ast: AstUnionNode):
 
 def walk(emitter: Emitter,
          lvl: int,
-         parent: NodeInfo,
+         parent: NodeInfo | None,
          reachable_nodes: AstUnionNode,
          name: str,
          node: AstNode):

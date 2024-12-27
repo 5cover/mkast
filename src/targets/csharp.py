@@ -38,12 +38,18 @@ class CSharpEmitter(Emitter):
         }
 
     def intro(self):
-        for using in self.usings:
-            print(f'using {using};')
-        print()
+        if self.usings:
+            for using in self.usings:
+                print(f'using {using};')
+            print()
+
         if self.cfg.namespace:
             print(f'namespace {self.cfg.namespace};')
             print()
+
+        if not self.cfg.root:
+            return 0
+
         print(f'public interface {pascalize(self.cfg.root)}')
         print('{')
         for p in self.cfg.common_props.items():
@@ -52,7 +58,7 @@ class CSharpEmitter(Emitter):
 
     def enter_node(self,
                    lvl: int,
-                   parent: NodeInfo,
+                   parent: NodeInfo | None,
                    node: NodeInfo,
                    implements: Mapping[str, NodeKind],
                    props: Mapping[str, str]):
@@ -69,7 +75,7 @@ class CSharpEmitter(Emitter):
             print(f'({csl(map(self.argument, props.items()))})', end='')
 
         print(base_type_list((parent.name,) + tuple(implements.keys())
-                             if parent.kind is NodeKind.Union else
+                             if parent and parent.kind is NodeKind.Union else
                              implements))
         println(lvl, '{')
 
@@ -91,14 +97,15 @@ class CSharpEmitter(Emitter):
         println(lvl, '}')
 
     def conclusion(self):
-        print('}')
+        if self.cfg.root:
+            print('}')
 
     def argument(self, prop: tuple[str, str]):
         return f'{self.real_type(prop[1])} {camel_ident(prop[0])}'
 
     def put_assignment(self, lvl: int, name: str, type: str):
         if vexpr := self.validation_expr(camel_ident(name), type):
-            println(lvl, f'Debug.Assert({vexpr});')
+            println(lvl, sub_var(self.assertion, 1, vexpr))
         println(lvl, f'{pascalize(name)} = {camel_ident(name)};')
 
     def put_prop(self, lvl: int, owner: str, name: str, type: str, access: str = '', put_init: bool = False):
@@ -122,7 +129,7 @@ class CSharpEmitter(Emitter):
         must = sub_var(m.must or '', 1, name)
 
         if '$2' in m.unwrap:
-            #$1.All($1 => $2)
+            # $1.All($1 => $2)
             # $2: inner
             # $1: name
             inner = self.validation_expr(name, type[:-1])

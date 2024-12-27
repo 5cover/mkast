@@ -4,6 +4,9 @@
 - [ ] Type options (abstracts type and modifier separation)
 - [ ] Modifier stackability (C# nullable reference types cannot be stacked)
 
+- [x] Multidocument input support
+- [x] Optional root
+
 - [x] Customize target (current config attr is not read)
 - [ ] Target-specific options
 - [x] Configure modifiers (config is read (untested), but not used)

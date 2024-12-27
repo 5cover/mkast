@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=../schemas/config.json
+target: csharp
+known_types:
+  - token
+  - object
+---
+# yaml-language-server: $schema=../schemas/nodes.json
+expr:
+  assign:
+    name: token
+    value: expr
+  binary:
+    left: expr
+    operator: token
+    right: expr
+  call:
+    callee: expr
+    paren: token # wtf?
+    arguments: expr*
+  get:
+    object: expr
+    name: token
+  grouping:
+    expression: expr
+  literal:
+    value: object
+  logical:
+    left: expr
+    operator: token
+    right: expr
+  set:
+    object: expr
+    name: token
+    right: expr
+  super:
+    keyword: token # huh?
+    method: token
+  this:
+    keyword: token # uhhh
+  unary:
+    operator: token
+    right: expr
+  variable:
+    name: token
+
+stmt:
+  block:
+    statements: stmt*
+  class:
+    name: token
+    superclass: expr
+    methods: function*
+  expression:
+    expression: expr
+  function:
+    name: token
+    paremeters: token*
+    body: stmt*
+  if:
+    condition: expr
+    thenBranch: stmt
+    elseBranch: stmt
+  print:
+    expression: expr
+  return:
+    keyword: token
+    value: expr
+  var:
+    name: token
+    initializer: expr
+  while:
+    condition: expr
+    body: stmt

@@ -1,15 +1,17 @@
 from collections import OrderedDict
-from collections.abc import Mapping, Set
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from functools import cache
 import re
 from typing import IO, Literal
+import src.config
 
 AstNode = OrderedDict[str, 'AstNode | str'] | None
 AstUnionNode = OrderedDict[str, AstNode]
 
 ModifierKey = Literal['1', '?', '+', '*']
+
 
 class NodeKind(Enum):
     Union = 'union'
@@ -30,16 +32,15 @@ class Modifier:
     unwrap: str = '$1'
 
 
-@dataclass
-class Config:
-    input_file: IO
+class Config(src.config.Config):
+    input: IO
     target: str
-    known_types: Set[str]
+    known_types: set[str]
     common_props: OrderedDict[str, str]
     root: str
     namespace: str | None
     assertion: str | None
-    modifiers: Mapping[ModifierKey, Modifier]
+    modifiers: dict[ModifierKey, Modifier]
 
 
 class Emitter:
@@ -52,7 +53,7 @@ class Emitter:
     def intro(self) -> int: return 0
 
     def enter_node(self, lvl: int,
-                   parent: NodeInfo,
+                   parent: NodeInfo | None,
                    node: NodeInfo,
                    implements: Mapping[str, NodeKind],
                    props: Mapping[str, str]): pass

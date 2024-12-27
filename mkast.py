@@ -1,19 +1,7 @@
 #!/usr/bin/env python3
 from src.astgen import generate_ast
-from src.domain import AstNode
-import src.cli as cli
-
-from collections import OrderedDict
-import yaml
+from src.cli import parse_args
 
 if __name__ == '__main__':
-    cfg, emitter = cli.parse_args()
-
-    loader = yaml.SafeLoader
-    loader.add_constructor(
-        yaml.resolver.Resolver.DEFAULT_MAPPING_TAG,
-        lambda loader, node: OrderedDict(loader.construct_pairs(node)),
-    )
-    ast: OrderedDict[str, AstNode] = yaml.load(cfg.input_file, loader) or OrderedDict()
-
+    cfg, emitter, ast = parse_args()
     generate_ast(cfg, emitter, ast)
