@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from src.astgen import generate_ast, get_emitter
+from src.astgen import generate_ast
 from src.domain import AstNode
 import src.cli as cli
 

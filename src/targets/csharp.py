@@ -35,7 +35,6 @@ class CSharpEmitter(Emitter):
         print('{')
         for p in self.cfg.common_props.items():
             put_prop(1, self.cfg.root, *p)
-        print()
         return 1
 
     def enter_node(self,
