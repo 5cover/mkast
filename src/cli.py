@@ -42,7 +42,7 @@ Options take predecence over values in the config file, if provided.
 
     file_c = yaml.safe_load(cli_c.pop('config')) or {} if 'config' in cli_c else {}
 
-    input = tuple(yaml.load_all(ap.FileType()(cli_c['input'] or file_c['input'] or '-'), yaml_ordered_loader()))
+    input = tuple(yaml.load_all(ap.FileType()(cli_c.get('input') or file_c.get('input') or '-'), yaml_ordered_loader()))
     match len(input):
         case 2:
             input_c, input = input
