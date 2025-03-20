@@ -1,5 +1,6 @@
+from typing import cast
 from src.astgen import get_emitter
-from src.domain import Config, Modifier
+from src.domain import AstUnionNode, Config, Modifier
 from src.util import yaml_ordered_loader
 
 from collections import ChainMap, OrderedDict
@@ -42,7 +43,7 @@ Options take predecence over values in the config file, if provided.
 
     cfg_file = yaml.safe_load(cfg_cli.pop('config')) or {} if 'config' in cfg_cli else {}
 
-    input: object = tuple(yaml.load_all(ap.FileType()(cfg_cli.get(
+    input = tuple(yaml.load_all(ap.FileType()(cfg_cli.get(
         'input') or cfg_file.get('input') or '-'), yaml_ordered_loader()))
     match len(input):
         case 2:
@@ -55,18 +56,15 @@ Options take predecence over values in the config file, if provided.
     cfg_map = ChainMap(cfg_cli, cfg_input, cfg_file, default_config)
     if 'target' not in cfg_map:
         argp.error(f"key 'target' is required in configuration")
+
+    if 'modifiers' in cfg_map:
+        cfg_map['modifiers'] = {k: Modifier(**v) for k, v in cfg_map['modifiers'].items()}
     
     cfg = Config(**cfg_map)
     if (emitter := get_emitter(cfg)) is None:
         argp.error(f"unknown target '{cfg.target}'")
 
-    return cfg, emitter, input
-
-
-def cfg_vals(values: dict):
-    if 'modifiers' in values:
-        values['modifiers'] = {k: Modifier(**v) for k, v in values['modifiers'].items()}
-    return values
+    return cfg, emitter, cast(AstUnionNode, input)
 
 
 def prop(input: str) -> tuple[str, str]:
