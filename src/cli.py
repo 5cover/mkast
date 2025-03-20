@@ -52,7 +52,7 @@ Options take predecence over values in the config file, if provided.
         case i:
             argp.error(f'input must contain 1 or 2 documents, not {i}')
 
-    cfg_map = ChainMap(cfg_cli, cfg_file, cfg_input, default_config)
+    cfg_map = ChainMap(cfg_cli, cfg_input, cfg_file, default_config)
     if 'target' not in cfg_map:
         argp.error(f"key 'target' is required in configuration")
     
