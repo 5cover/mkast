@@ -6,6 +6,14 @@ from itertools import chain
 
 
 class AgnosticEmitter(Emitter):
+    def intro(self) -> int:
+        if self.cfg.namespace:
+            print(f'namespace {self.cfg.namespace}')
+        if self.cfg.root:
+            print(f'root {self.cfg.root}')
+        print()
+        return 0
+
     def enter_node(
             self, lvl: int,
             parent: NodeInfo | None,

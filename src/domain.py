@@ -1,11 +1,11 @@
+from abc import ABC, abstractmethod
 from collections import OrderedDict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from functools import cache
 import re
 from typing import IO, Literal
-import src.config
 
 AstNode = OrderedDict[str, 'AstNode | str'] | None
 AstUnionNode = OrderedDict[str, AstNode]
@@ -32,26 +32,36 @@ class Modifier:
     unwrap: str = '$1'
 
 
-class Config(src.config.Config):
-    input: IO
+@dataclass
+class Config:
+    input: IO[str]
     target: str
     known_types: set[str]
     common_props: OrderedDict[str, str]
-    root: str
+    root: str | None
     namespace: str | None
     assertion: str | None
     modifiers: dict[ModifierKey, Modifier]
+    imports: Sequence[str]
 
 
-class Emitter:
+class Emitter(ABC):
     def __init__(self, cfg: Config):
         self.__cfg = cfg
 
     @property
     def cfg(self): return self.__cfg
 
-    def intro(self) -> int: return 0
+    def intro(self) -> int:
+        """
+        Echoes the introduction once at the start.
 
+        Returns:
+            int: The indentation level to start at.
+        """
+        return 0
+
+    @abstractmethod
     def enter_node(self, lvl: int,
                    parent: NodeInfo | None,
                    node: NodeInfo,

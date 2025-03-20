@@ -40,6 +40,13 @@
       "description": "Code to generate for an assertion. $1 is replaced by the boolean expression to assert",
       "pattern": "\\$1"
     },
+    "imports": {
+      "type": "array",
+      "description": "Imports to add at the top of the file",
+      "items": {
+        "type": "string"
+      }
+    },
     "modifiers": {
       "type": "object",
       "properties": {

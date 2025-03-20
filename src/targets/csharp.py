@@ -3,7 +3,6 @@ from src.util import println, csl, cslq, remove_prefix, sub_var
 
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
-from functools import cache
 from itertools import chain
 
 Keywords = {
@@ -22,14 +21,17 @@ class CSharpEmitter(Emitter):
     def __init__(self, cfg: Config):
         super().__init__(cfg)
 
-        self.usings = []
+        self.usings = set(cfg.imports)
 
         if cfg.assertion:
             self.assertion = cfg.assertion
         else:
-            self.usings.append('System.Diagnotics')
-            self.assertion = 'Debug.Assert($1)'
-
+            self.usings.add('System.Diagnostics')
+            self.assertion = 'Debug.Assert($1);'
+        
+        # $1.All($1 => $2)
+        # $2: inner
+        # $1: name
         self.modifiers: dict[ModifierKey, Modifier] = {
             '?': cfg.modifiers.get('?', Modifier('$1?', none_when='$1 is null')),
             '1': cfg.modifiers.get('1', Modifier()),
@@ -39,7 +41,7 @@ class CSharpEmitter(Emitter):
 
     def intro(self):
         if self.usings:
-            for using in self.usings:
+            for using in sorted(self.usings):
                 print(f'using {using};')
             print()
 
@@ -67,16 +69,19 @@ class CSharpEmitter(Emitter):
 
         props = OrderedDict(chain(self.cfg.common_props.items(), props.items()))
 
-        require_explicit_constructor = any((self.requires_validation(t) for t in props.values()))
+        require_explicit_constructor = any(self.requires_validation(t) for t in props.values())
 
         println(lvl, f'public {NodeKinds[node.kind]} {pascalize(node.name)}', end='')
 
+        # primary constructor arguments
         if node.kind is NodeKind.Class and props and not require_explicit_constructor:
             print(f'({csl(map(self.argument, props.items()))})', end='')
 
+        # base types list
         print(base_type_list((parent.name,) + tuple(implements.keys())
                              if parent and parent.kind is NodeKind.Union else
                              implements))
+
         println(lvl, '{')
 
         lvl += 1
@@ -128,11 +133,7 @@ class CSharpEmitter(Emitter):
         none_when = sub_var(m.none_when or '', 1, name)
         must = sub_var(m.must or '', 1, name)
 
-        if '$2' in m.unwrap:
-            # $1.All($1 => $2)
-            # $2: inner
-            # $1: name
-            inner = self.validation_expr(name, type[:-1])
+        if '$2' in m.unwrap and (inner := self.validation_expr(name, type[:-1])):
             unwrap = sub_var(sub_var(m.unwrap, 1, name), 2, inner)
         else:
             name = sub_var(m.unwrap, 1, name)

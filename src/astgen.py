@@ -1,5 +1,5 @@
 from src.domain import Config, Emitter, NodeInfo, NodeKind, AstNode, AstUnionNode, is_do_not_touch
-from src.util import csl, cslq, none_map
+from src.util import csl, cslq
 from src.targets.agnostic import AgnosticEmitter
 from src.targets.csharp import CSharpEmitter
 
@@ -13,13 +13,13 @@ emitters = {
 }
 
 
-def get_emitter(cfg: Config):
+def get_emitter(cfg: Config) -> Emitter | None:
     cls = emitters.get(cfg.target, None)
     return None if cls is None else cls(cfg)
 
 
 def generate_ast(cfg: Config, emitter: Emitter, ast: AstUnionNode):
-    root_node_info = none_map(cfg.root, lambda r: NodeInfo(r, NodeKind.Union))
+    root_node_info = None if cfg.root is None else NodeInfo(cfg.root, NodeKind.Union)
     lvl = emitter.intro()
     for name, node in ast.items():
         walk(emitter, lvl, root_node_info, ast, name, node)
@@ -36,7 +36,7 @@ def walk(emitter: Emitter,
          reachable_nodes: AstUnionNode,
          name: str,
          node: AstNode):
-    implements = OrderedDict(((k, NodeKind.Union) for k in in_unions(reachable_nodes, name) if k != parent.name))
+    implements = OrderedDict(((k, NodeKind.Union) for k in in_unions(reachable_nodes, name) if parent is None or k != parent.name))
     if node_is_union(node):
         if redefined_nodes := {k for k in node & reachable_nodes.keys() if node[k] is not None}:
             raise ValueError(f"redefined nodes in '{name}': {cslq(redefined_nodes)}")
