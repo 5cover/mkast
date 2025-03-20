@@ -27,15 +27,14 @@ def generate_ast(cfg: Config, emitter: Emitter, ast: AstUnionNode):
 
 # todo: instead of visiting on the fly, build a datastructure and revisit. this means we'll be able to query the properties and subnodes of a node when generating it, which will allow for smarter code generation (semi-colon body)
 
-# invariant: reachable_nodes contains the current node
-
-
 def walk(emitter: Emitter,
          lvl: int,
          parent: NodeInfo | None,
          reachable_nodes: AstUnionNode,
          name: str,
          node: AstNode):
+    assert reachable_nodes[name] is node, 'invariant: reachable_nodes contains the current node'
+
     implements = OrderedDict(((k, NodeKind.Union) for k in in_unions(reachable_nodes, name) if parent is None or k != parent.name))
     if node_is_union(node):
         if redefined_nodes := {k for k in node & reachable_nodes.keys() if node[k] is not None}:
