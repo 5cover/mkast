@@ -1,7 +1,13 @@
 # Todo
 
-- [ ] Pattern domain (handles replacement of $1, $2..., escaping)
-- [ ] Type options (abstracts type and modifier separation)
+- [ ] instead of visiting on the fly, build a datastructure and revisit. this means we'll be able to query the properties and subnodes of a node when generating it, which will allow for:
+    - [ ] smarter code generation (semi-colon body)
+    - [ ] mermaid class diagram target
+    - [ ] csharp: only strictly necessary interfaces in base type list (currently all parents are added)
+
+- [ ] union node properties: currently, we decide to make a product node if it contains properties (which is why we need root in config to wrap everyting in an interface). this means we cannot have interfaces with properties. solution: use '*' for products and '+' for sum types
+- [ ] account for the empty modifier in csharp.py (currently it seems to be ignored)
+
 - [ ] Modifier stackability (C# nullable reference types cannot be stacked)
 
 - [x] Multidocument input support

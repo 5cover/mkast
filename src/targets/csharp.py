@@ -1,3 +1,4 @@
+from typing import cast
 from src.domain import Config, Emitter, Modifier, ModifierKey, NodeInfo, NodeKind, camelize, pascalize, get_dont_touch_me
 from src.util import println, csl, cslq, remove_prefix, sub
 
@@ -15,8 +16,6 @@ Keywords = {
     'try', 'typeof', 'uint', 'ulong', 'unchecked', 'unsafe', 'ushort', 'using', 'virtual', 'void', 'volatile', 'while'
 }
 
-# todo: account for empty modifier (currently it seems to be ignored)
-
 class CSharpEmitter(Emitter):
     def __init__(self, cfg: Config):
         super().__init__(cfg)
@@ -28,6 +27,7 @@ class CSharpEmitter(Emitter):
         else:
             self.usings.add('System.Diagnostics')
             self.assert_ = 'Debug.Assert($1);'
+            
         
         # $1.All($1 => $2)
         # $2: inner
@@ -93,7 +93,7 @@ class CSharpEmitter(Emitter):
         println(lvl, '{')
 
         lvl += 1
-        if not is_record and node.kind is NodeKind.Product and props:
+        if (not is_record or need_explicit_constructor) and node.kind is NodeKind.Product and props:
             if need_explicit_constructor:
                 println(lvl, f'public {pascalize(node.name)}({csl(map(self.argument(camel_ident), props.items()))})')
                 println(lvl, '{')

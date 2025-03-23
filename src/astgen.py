@@ -25,8 +25,6 @@ def generate_ast(cfg: Config, emitter: Emitter, ast: AstUnionNode):
         walk(emitter, lvl, root_node_info, ast, name, node)
     emitter.conclusion()
 
-# todo: instead of visiting on the fly, build a datastructure and revisit. this means we'll be able to query the properties and subnodes of a node when generating it, which will allow for smarter code generation (semi-colon body)
-
 def walk(emitter: Emitter,
          lvl: int,
          parent: NodeInfo | None,
