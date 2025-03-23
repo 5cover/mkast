@@ -148,8 +148,8 @@ class CSharpEmitter(Emitter):
             name = sub(m.unwrap, 1, name)
             unwrap = self.validation_expr(name, type[:-1])
 
-        r = ' || '.join(filter(None, (none_when, must)))
-        return ' && '.join(filter(None, (r, unwrap)))
+        r = ' && '.join(filter(None, (must, unwrap)))
+        return ' || '.join(filter(None, (none_when, r)))
 
     def requires_validation(self, type: str):
         validating_modifiers = {k for k, v in self.modifiers.items() if v.must}
