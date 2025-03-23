@@ -7,16 +7,23 @@ from collections import ChainMap, OrderedDict
 import argparse as ap
 import yaml
 
-default_config = {
+def postprocess_loaded_cfg(cfg: dict[str, object]):
+    if 'assert' in cfg:
+        cfg['assert_'] = cfg.pop('assert')
+    return cfg
+
+default_config = postprocess_loaded_cfg({
     'target': 'agnostic',
     'known_types': set(),
     'common_props': OrderedDict(),
     'root': None,
     'namespace': None,
-    'assertion': None,
-    'modifiers': {},
+    'assert': None,
+    'union': None,
+    'product': None,
     'imports': [],
-}
+    'modifiers': {},
+})
 
 def parse_args():
     argp = ap.ArgumentParser('mkast', description="""
@@ -31,7 +38,9 @@ Options take predecence over values in the config file, if provided.
     _ = argp.add_argument('--common-props', '--common-prop', nargs='*', type=prop, help="common property: 'name:type'")
     _ = argp.add_argument('--root', help='root node')
     _ = argp.add_argument('--namespace', help='namespace')
-    _ = argp.add_argument('--assertion', help='code for an assertion. $1 is replaced by the boolean expression to assert')
+    _ = argp.add_argument('--assert', help='Expands to an assertion statement. $1 is replaced by the boolean expression to assert')
+    _ = argp.add_argument('--union', help='Expands to the declaration of an union node. $1 is replaced by the name of the node.')
+    _ = argp.add_argument('--product', help='Expands to the declaration of an product node. $1 is replaced by the name of the node.')
     _ = argp.add_argument('--imports', '--import', help='imports to add at the top of the file', nargs='*')
 
     cfg_cli = {k: v for k, v in vars(argp.parse_args()).items() if v is not None}
@@ -41,13 +50,15 @@ Options take predecence over values in the config file, if provided.
     if (cp := cfg_cli.get('common_props')) is not None:
         cfg_cli['common_props'] = OrderedDict(cp),
 
-    cfg_file = yaml.safe_load(cfg_cli.pop('config')) or {} if 'config' in cfg_cli else {}
+    cfg_file = postprocess_loaded_cfg(yaml.safe_load(cfg_cli.pop('config')) or {} if 'config' in cfg_cli else {})
 
-    input = tuple(yaml.load_all(ap.FileType()(cfg_cli.get(
-        'input') or cfg_file.get('input') or '-'), yaml_ordered_loader()))
+    input_filename = cfg_cli.get('input') or str(cfg_file.get('input')) or '-'
+
+    input = tuple(yaml.load_all(ap.FileType()(input_filename), yaml_ordered_loader()))
     match len(input):
         case 2:
             cfg_input, input = input
+            postprocess_loaded_cfg(cfg_input)
         case 1:
             cfg_input, input = {}, input[0]
         case i:
@@ -59,13 +70,12 @@ Options take predecence over values in the config file, if provided.
 
     if 'modifiers' in cfg_map:
         cfg_map['modifiers'] = {k: Modifier(**v) for k, v in cfg_map['modifiers'].items()}
-    
+
     cfg = Config(**cfg_map)
     if (emitter := get_emitter(cfg)) is None:
         argp.error(f"unknown target '{cfg.target}'")
 
     return cfg, emitter, cast(AstUnionNode, input)
-
 
 def prop(input: str) -> tuple[str, str]:
     s = input.split(':', 1)

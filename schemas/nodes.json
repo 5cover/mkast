@@ -10,7 +10,7 @@
   "additionalProperties": {
     "oneOf": [
       {
-        "title": "empty class node",
+        "title": "empty product node",
         "type": "null"
       },
       {

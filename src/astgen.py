@@ -57,7 +57,7 @@ def walk(emitter: Emitter,
                 emitter.cfg.known_types, reachable_nodes, v)):
             raise ValueError(f"properties of undefined type in '{name}': {csl(undef_type_props)}")
 
-        me = NodeInfo(name, NodeKind.Class)
+        me = NodeInfo(name, NodeKind.Product)
         emitter.enter_node(lvl, parent, me, implements, props)
         for sub in subs.items():
             walk(emitter, lvl + 1, me, subs | reachable_nodes, *sub)

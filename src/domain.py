@@ -10,12 +10,12 @@ from typing import IO, Literal
 AstNode = OrderedDict[str, 'AstNode | str'] | None
 AstUnionNode = OrderedDict[str, AstNode]
 
-ModifierKey = Literal['1', '?', '+', '*']
+ModifierKey = Literal['', '?', '+', '*']
 
 
 class NodeKind(Enum):
     Union = 'union'
-    Class = 'class'
+    Product = 'product'
 
 
 @dataclass
@@ -40,9 +40,11 @@ class Config:
     common_props: OrderedDict[str, str]
     root: str | None
     namespace: str | None
-    assertion: str | None
-    modifiers: dict[ModifierKey, Modifier]
+    assert_: str | None
+    union: str | None
+    product: str | None
     imports: Sequence[str]
+    modifiers: dict[ModifierKey, Modifier]
 
 
 class Emitter(ABC):

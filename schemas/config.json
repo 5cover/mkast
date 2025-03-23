@@ -35,25 +35,33 @@
       "type": "string",
       "pattern": "^([A-Za-z_]\\w*)(?:\\.[A-Za-z_]\\w*)*$"
     },
-    "assertion": {
-      "type": "string",
-      "description": "Code to generate for an assertion. $1 is replaced by the boolean expression to assert",
-      "pattern": "\\$1"
+    "assert": {
+      "$ref": "#/definitions/snippet1",
+      "description": "Expands to an assertion. $1 is replaced by the boolean expression to assert"
     },
     "imports": {
       "type": "array",
       "description": "Imports to add at the top of the file",
       "items": {
-        "type": "string"
+        "type": "string",
+        "pattern": "^([A-Za-z_]\\w*)(?:\\.[A-Za-z_]\\w*)*$"
       }
+    },
+    "union": {
+      "$ref": "#/definitions/snippet1",
+      "description": "Code placed before the name in the declaration of an union node"
+    },
+    "product": {
+      "$ref": "#/definitions/snippet1",
+      "description": "Code placed before name in the declaration of a product node"
     },
     "modifiers": {
       "type": "object",
       "properties": {
-        "?": {
+        "": {
           "$ref": "#/definitions/modifier"
         },
-        "1": {
+        "?": {
           "$ref": "#/definitions/modifier"
         },
         "+": {
@@ -70,30 +78,30 @@
       "type": "object",
       "properties": {
         "type": {
+          "$ref": "#/definitions/snippet1",
           "title": "type",
-          "description": "The type name. $1 is replaced by the payload type.",
-          "type": "string",
-          "pattern": "\\$1"
+          "description": "The type name. $1 is replaced by the payload type."
         },
         "must": {
+          "$ref": "#/definitions/snippet1",
           "title": "must",
-          "description": "The \"must\" expression. A boolean expression that validates the value. $1 is replaced by the name of the variable to check.",
-          "type": "string",
-          "pattern": "\\$1"
+          "description": "The \"must\" expression. A boolean expression that validates the value. $1 is replaced by the name of the variable to check."
         },
         "none_when": {
+          "$ref": "#/definitions/snippet1",
           "title": "none_when",
-          "description": "The \"none when\" expression. A boolean expression that indicates when it is invalid to unwrap the value. $1 is replaced by the name of the variable to check.",
-          "type": "string",
-          "pattern": "\\$1"
+          "description": "The \"none when\" expression. A boolean expression that indicates when it is invalid to unwrap the value. $1 is replaced by name of the variable to check."
         },
         "unwrap": {
-          "type": "string",
+          "$ref": "#/definitions/snippet1",
           "title": "unwrap",
-          "description": "The unwrapping expression. $1 is replaced by the haystack value. $1 is replaced by the name of the variable to check. $2 is replaced by the inner expression (based on $1)",
-          "pattern": "\\$1"
+          "description": "The unwrapping expression. $1 is replaced by the haystack value. $1 is replaced by the name of the variable to unwrap. $2, if present, is replaced by the inner expression (based on $1)"
         }
       }
+    },
+    "snippet1": {
+      "type": "string",
+      "pattern": "\\$1"
     }
   }
 }

@@ -1,9 +1,10 @@
 from src.domain import Config, Emitter, Modifier, ModifierKey, NodeInfo, NodeKind, camelize, pascalize, get_dont_touch_me
-from src.util import println, csl, cslq, remove_prefix, sub_var
+from src.util import println, csl, cslq, remove_prefix, sub
 
 from collections import OrderedDict
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from itertools import chain
+import re
 
 Keywords = {
     'abstract', 'as', 'base', 'bool', 'break', 'byte', 'case', 'catch', 'char', 'checked', 'class', 'const', 'continue',
@@ -14,8 +15,7 @@ Keywords = {
     'try', 'typeof', 'uint', 'ulong', 'unchecked', 'unsafe', 'ushort', 'using', 'virtual', 'void', 'volatile', 'while'
 }
 
-NodeKinds = {NodeKind.Class: 'sealed class', NodeKind.Union: 'interface'}
-
+# todo: account for empty modifier (currently it seems to be ignored)
 
 class CSharpEmitter(Emitter):
     def __init__(self, cfg: Config):
@@ -23,20 +23,25 @@ class CSharpEmitter(Emitter):
 
         self.usings = set(cfg.imports)
 
-        if cfg.assertion:
-            self.assertion = cfg.assertion
+        if cfg.assert_:
+            self.assert_ = cfg.assert_
         else:
             self.usings.add('System.Diagnostics')
-            self.assertion = 'Debug.Assert($1);'
+            self.assert_ = 'Debug.Assert($1);'
         
         # $1.All($1 => $2)
         # $2: inner
         # $1: name
         self.modifiers: dict[ModifierKey, Modifier] = {
+            '' : cfg.modifiers.get('', Modifier()),
             '?': cfg.modifiers.get('?', Modifier('$1?', none_when='$1 is null')),
-            '1': cfg.modifiers.get('1', Modifier()),
             '+': cfg.modifiers.get('+', Modifier('IReadOnlyList<$1>', '$1.Count > 0', unwrap='$1.All($1 => $2)')),
             '*': cfg.modifiers.get('*', Modifier('IReadOnlyList<$1>', unwrap='$1.All($1 => $2)')),
+        }
+        
+        self.node_kinds = {
+            NodeKind.Product: cfg.product or 'public sealed class $1',
+            NodeKind.Union: cfg.union or 'public interface $1'
         }
 
     def intro(self):
@@ -52,7 +57,7 @@ class CSharpEmitter(Emitter):
         if not self.cfg.root:
             return 0
 
-        print(f'public interface {pascalize(self.cfg.root)}')
+        print(sub(self.node_kinds[NodeKind.Union], 1, pascalize(self.cfg.root)))
         print('{')
         for p in self.cfg.common_props.items():
             self.put_prop(1, self.cfg.root, *p)
@@ -69,25 +74,28 @@ class CSharpEmitter(Emitter):
 
         props = OrderedDict(chain(self.cfg.common_props.items(), props.items()))
 
-        require_explicit_constructor = any(self.requires_validation(t) for t in props.values())
+        need_explicit_constructor = any(map(self.requires_validation, props.values()))
 
-        println(lvl, f'public {NodeKinds[node.kind]} {pascalize(node.name)}', end='')
+        nk = self.node_kinds[node.kind]
+        is_record = re.search(r'\brecord\b', nk) is not None
+        println(lvl, sub(nk, 1, pascalize(node.name)), end='')
 
         # primary constructor arguments
-        if node.kind is NodeKind.Class and props and not require_explicit_constructor:
-            print(f'({csl(map(self.argument, props.items()))})', end='')
+        if node.kind is NodeKind.Product and props and not need_explicit_constructor:
+            print(f'({csl(map(self.argument(pascalize if is_record else camel_ident), props.items()))})', end='')
 
         # base types list
         print(base_type_list((parent.name,) + tuple(implements.keys())
                              if parent and parent.kind is NodeKind.Union else
-                             implements))
+                             implements), end = '')
 
+        print()
         println(lvl, '{')
 
         lvl += 1
-        if node.kind is NodeKind.Class and props:
-            if require_explicit_constructor:
-                println(lvl, f'public {pascalize(node.name)}({csl(map(self.argument, props.items()))})')
+        if not is_record and node.kind is NodeKind.Product and props:
+            if need_explicit_constructor:
+                println(lvl, f'public {pascalize(node.name)}({csl(map(self.argument(camel_ident), props.items()))})')
                 println(lvl, '{')
                 for p in props.items():
                     self.put_assignment(lvl + 1, *p)
@@ -95,6 +103,7 @@ class CSharpEmitter(Emitter):
                 for p in props.items():
                     self.put_prop(lvl, node.name, *p, 'public')
             else:
+                # primary constructor initializers
                 for p in props.items():
                     self.put_prop(lvl, node.name, *p, 'public', True)
 
@@ -105,12 +114,12 @@ class CSharpEmitter(Emitter):
         if self.cfg.root:
             print('}')
 
-    def argument(self, prop: tuple[str, str]):
-        return f'{self.real_type(prop[1])} {camel_ident(prop[0])}'
+    def argument(self, name_transformer: Callable[[str], str]):
+        return lambda prop: f'{self.real_type(prop[1])} {name_transformer(prop[0])}'
 
     def put_assignment(self, lvl: int, name: str, type: str):
         if vexpr := self.validation_expr(camel_ident(name), type):
-            println(lvl, sub_var(self.assertion, 1, vexpr))
+            println(lvl, sub(self.assert_, 1, vexpr))
         println(lvl, f'{pascalize(name)} = {camel_ident(name)};')
 
     def put_prop(self, lvl: int, owner: str, name: str, type: str, access: str = '', put_init: bool = False):
@@ -122,7 +131,7 @@ class CSharpEmitter(Emitter):
         if type[-1] not in self.modifiers:
             return pascalize(type)
         m = self.modifiers[type[-1]]
-        return sub_var(m.type, 1, self.real_type(type[:-1]))
+        return sub(m.type, 1, self.real_type(type[:-1]))
 
     def validation_expr(self, name: str, type: str):
         if type[-1] not in self.modifiers:
@@ -130,13 +139,13 @@ class CSharpEmitter(Emitter):
         m = self.modifiers[type[-1]]
 
         # {none_when} || {must} && {unwrap}
-        none_when = sub_var(m.none_when or '', 1, name)
-        must = sub_var(m.must or '', 1, name)
+        none_when = sub(m.none_when or '', 1, name)
+        must = sub(m.must or '', 1, name)
 
         if '$2' in m.unwrap and (inner := self.validation_expr(name, type[:-1])):
-            unwrap = sub_var(sub_var(m.unwrap, 1, name), 2, inner)
+            unwrap = sub(sub(m.unwrap, 1, name), 2, inner)
         else:
-            name = sub_var(m.unwrap, 1, name)
+            name = sub(m.unwrap, 1, name)
             unwrap = self.validation_expr(name, type[:-1])
 
         r = ' || '.join(filter(None, (none_when, must)))
