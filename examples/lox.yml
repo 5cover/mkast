@@ -15,7 +15,7 @@ expr:
     right: expr
   call:
     callee: expr
-    paren: token # wtf?
+    paren: token
     arguments: expr*
   get:
     object: expr
@@ -33,10 +33,10 @@ expr:
     name: token
     right: expr
   super:
-    keyword: token # huh?
+    keyword: token
     method: token
   this:
-    keyword: token # uhhh
+    keyword: token
   unary:
     operator: token
     right: expr
@@ -54,7 +54,7 @@ stmt:
     expression: expr
   function:
     name: token
-    paremeters: token*
+    parameters: token*
     body: stmt*
   if:
     condition: expr

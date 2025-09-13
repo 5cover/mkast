@@ -1,8 +1,7 @@
-from typing import cast
-from src.domain import Config, Emitter, Modifier, ModifierKey, NodeInfo, NodeKind, camelize, pascalize, get_dont_touch_me
-from src.util import println, csl, cslq, remove_prefix, sub
+from ..cfg import Modifier, ModifierKey
+from ..domain import Config, Emitter, NodeInfo, NodeKind, camelize, pascalize, get_dont_touch_me
+from ..util import println, csl, cslq, remove_prefix, sub
 
-from collections import OrderedDict
 from collections.abc import Callable, Iterable, Mapping
 from itertools import chain
 import re
@@ -16,6 +15,7 @@ Keywords = {
     'try', 'typeof', 'uint', 'ulong', 'unchecked', 'unsafe', 'ushort', 'using', 'virtual', 'void', 'volatile', 'while'
 }
 
+
 class CSharpEmitter(Emitter):
     def __init__(self, cfg: Config):
         super().__init__(cfg)
@@ -27,18 +27,17 @@ class CSharpEmitter(Emitter):
         else:
             self.usings.add('System.Diagnostics')
             self.assert_ = 'Debug.Assert($1);'
-            
-        
+
         # $1.All($1 => $2)
         # $2: inner
         # $1: name
         self.modifiers: dict[ModifierKey, Modifier] = {
-            '' : cfg.modifiers.get('', Modifier()),
-            '?': cfg.modifiers.get('?', Modifier('$1?', none_when='$1 is null')),
-            '+': cfg.modifiers.get('+', Modifier('IReadOnlyList<$1>', '$1.Count > 0', unwrap='$1.All($1 => $2)')),
-            '*': cfg.modifiers.get('*', Modifier('IReadOnlyList<$1>', unwrap='$1.All($1 => $2)')),
+            '': cfg.modifiers.get('', Modifier()),
+            '?': cfg.modifiers.get('?', Modifier(type='$1?', none_when='$1 is null')),
+            '+': cfg.modifiers.get('+', Modifier(type='IReadOnlyList<$1>', must='$1.Count > 0', unwrap='$1.All($1 => $2)')),
+            '*': cfg.modifiers.get('*', Modifier(type='IReadOnlyList<$1>', unwrap='$1.All($1 => $2)')),
         }
-        
+
         self.node_kinds = {
             NodeKind.Product: cfg.product or 'public sealed class $1',
             NodeKind.Union: cfg.union or 'public interface $1'
@@ -70,9 +69,9 @@ class CSharpEmitter(Emitter):
                    implements: Mapping[str, NodeKind],
                    props: Mapping[str, str]):
         if reserved_props := props & self.cfg.common_props.keys():
-            raise ValueError(f"reserved propety names in '{node.name}': {cslq(reserved_props)}")
+            raise ValueError(f"reserved property names in '{node.name}': {cslq(reserved_props)}")
 
-        props = OrderedDict(chain(self.cfg.common_props.items(), props.items()))
+        props = dict(chain(self.cfg.common_props.items(), props.items()))
 
         need_explicit_constructor = any(map(self.requires_validation, props.values()))
 
@@ -87,7 +86,7 @@ class CSharpEmitter(Emitter):
         # base types list
         print(base_type_list((parent.name,) + tuple(implements.keys())
                              if parent and parent.kind is NodeKind.Union else
-                             implements), end = '')
+                             implements), end='')
 
         print()
         println(lvl, '{')
@@ -118,8 +117,8 @@ class CSharpEmitter(Emitter):
         return lambda prop: f'{self.real_type(prop[1])} {name_transformer(prop[0])}'
 
     def put_assignment(self, lvl: int, name: str, type: str):
-        if vexpr := self.validation_expr(camel_ident(name), type):
-            println(lvl, sub(self.assert_, 1, vexpr))
+        if val_expr := self.validation_expr(camel_ident(name), type):
+            println(lvl, sub(self.assert_, 1, val_expr))
         println(lvl, f'{pascalize(name)} = {camel_ident(name)};')
 
     def put_prop(self, lvl: int, owner: str, name: str, type: str, access: str = '', put_init: bool = False):

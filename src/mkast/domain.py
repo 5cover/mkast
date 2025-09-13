@@ -1,16 +1,14 @@
 from abc import ABC, abstractmethod
-from collections import OrderedDict
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from functools import cache
 import re
-from typing import IO, Literal
 
-AstNode = OrderedDict[str, 'AstNode | str'] | None
-AstUnionNode = OrderedDict[str, AstNode]
+from .cfg import Config
 
-ModifierKey = Literal['', '?', '+', '*']
+AstNode = dict[str, 'AstNode | str'] | None
+AstUnionNode = dict[str, AstNode]
 
 
 class NodeKind(Enum):
@@ -22,29 +20,6 @@ class NodeKind(Enum):
 class NodeInfo:
     name: str
     kind: NodeKind
-
-
-@dataclass
-class Modifier:
-    type: str = '$1'
-    must: str | None = None
-    none_when: str | None = None
-    unwrap: str = '$1'
-
-
-@dataclass
-class Config:
-    input: IO[str]
-    target: str
-    known_types: set[str]
-    common_props: OrderedDict[str, str]
-    root: str | None
-    namespace: str | None
-    assert_: str | None
-    union: str | None
-    product: str | None
-    imports: Sequence[str]
-    modifiers: dict[ModifierKey, Modifier]
 
 
 class Emitter(ABC):
@@ -97,7 +72,7 @@ def pascalize(snake_case: str) -> str:
 @cache
 def camelize(snake_case: str) -> str:
     """
-    Replace undescores which are not the first character of the string and are followed by a non-undescore character by the uppercase equivalent of that character.
+    Replace underscores which are not the first character of the string and are followed by a non-underscore character by the uppercase equivalent of that character.
     """
     if s := get_dont_touch_me(snake_case):
         return s

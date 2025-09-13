@@ -1,9 +1,8 @@
-from src.domain import Config, Emitter, NodeInfo, NodeKind, AstNode, AstUnionNode, is_do_not_touch
-from src.util import csl, cslq
-from src.targets.agnostic import AgnosticEmitter
-from src.targets.csharp import CSharpEmitter
+from .domain import Config, Emitter, NodeInfo, NodeKind, AstNode, AstUnionNode, is_do_not_touch
+from .util import csl, cslq
+from .targets.agnostic import AgnosticEmitter
+from .targets.csharp import CSharpEmitter
 
-from collections import OrderedDict
 from collections.abc import Iterable, Mapping, Set
 from typing import TypeGuard
 
@@ -25,6 +24,7 @@ def generate_ast(cfg: Config, emitter: Emitter, ast: AstUnionNode):
         walk(emitter, lvl, root_node_info, ast, name, node)
     emitter.conclusion()
 
+
 def walk(emitter: Emitter,
          lvl: int,
          parent: NodeInfo | None,
@@ -33,7 +33,7 @@ def walk(emitter: Emitter,
          node: AstNode):
     assert reachable_nodes[name] is node, 'invariant: reachable_nodes contains the current node'
 
-    implements = OrderedDict(((k, NodeKind.Union) for k in in_unions(reachable_nodes, name) if parent is None or k != parent.name))
+    implements = {k: NodeKind.Union for k in in_unions(reachable_nodes, name) if parent is None or k != parent.name}
     if node_is_union(node):
         if redefined_nodes := {k for k in node & reachable_nodes.keys() if node[k] is not None}:
             raise ValueError(f"redefined nodes in '{name}': {cslq(redefined_nodes)}")
@@ -45,12 +45,12 @@ def walk(emitter: Emitter,
         emitter.exit_node(lvl)
     else:
         if node is None:
-            node = OrderedDict()
+            node = {}
 
         subs = subnodes(node)
         if redefined_subs := subs & reachable_nodes.keys():
             raise ValueError(f"redefined subnodes in '{name}': {cslq(redefined_subs)}")
-        props = OrderedDict((k, v) for k, v in node.items() if isinstance(v, str))
+        props = {k: v for k, v in node.items() if isinstance(v, str)}
         if undef_type_props := tuple(f"'{k}' ('{v}')" for k, v in props.items() if not check_type(
                 emitter.cfg.known_types, reachable_nodes, v)):
             raise ValueError(f"properties of undefined type in '{name}': {csl(undef_type_props)}")
@@ -63,10 +63,10 @@ def walk(emitter: Emitter,
 
 
 def check_type(known_types: Set[str], reachable_nodes: AstUnionNode, ptype: str) -> bool:
-    realtype = ptype.rstrip('*+?')
-    if is_do_not_touch(ptype) or realtype in known_types:
+    real_type = ptype.rstrip('*+?')
+    if is_do_not_touch(ptype) or real_type in known_types:
         return True
-    s = realtype.split('.', 1)
+    s = real_type.split('.', 1)
     if len(s) == 1:
         return s[0] in reachable_nodes.keys()
     first, others = s
@@ -77,7 +77,7 @@ def check_type(known_types: Set[str], reachable_nodes: AstUnionNode, ptype: str)
 
 
 def subnodes(node: AstNode) -> AstUnionNode:
-    return OrderedDict() if node is None else OrderedDict((k, v) for k, v in node.items() if not isinstance(v, str))
+    return {} if node is None else {k: v for k, v in node.items() if not isinstance(v, str)}
 
 
 def in_unions(reachable_nodes: Mapping[str, AstNode], name: str) -> Iterable[str]:
