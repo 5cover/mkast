@@ -1,6 +1,6 @@
 from typing import IO
 import pydantic
-from .cfg import FileConfig, load_config, merge_cfg
+from .cfg import FileConfig, load_config
 from .domain import AstUnionNode, Config, Emitter
 from .mkast import get_emitter
 import argparse as ap
@@ -55,7 +55,7 @@ def read_config(filename: pathlib.Path) -> Config:
     while not cfg or not cfgF or (cfgF.extends and (filename := (filename.parent / cfgF.extends).resolve()) not in visited):
         visited.add(filename)
         cfgF = read_config_file(filename)
-        cfg = merge_cfg(cfg, cfgF) if cfg else cfgF
+        cfg = cfg + cfgF if cfg else cfgF
     return cfg
 
 def read_config_file(filename: pathlib.Path) -> FileConfig:
@@ -87,7 +87,7 @@ def parse_args() -> tuple[Config, AstUnionNode, Emitter]:
         exit()
     cfg = config_from_args(args)
     if args.config:
-        cfg = merge_cfg(cfg, read_config(pathlib.Path(args.config)))
+        cfg += read_config(pathlib.Path(args.config))
     try:
         input_cfg, input = load_input(ap.FileType()(str(cfg.input) if cfg.input else '-'))
     except pydantic.ValidationError as e:
@@ -95,7 +95,7 @@ def parse_args() -> tuple[Config, AstUnionNode, Emitter]:
     except ValueError as e:
         p.error(' '.join(e.args))
     if input_cfg:
-        cfg = merge_cfg(cfg, input_cfg)
+        cfg += input_cfg
     if args.dump:
         print('CONFIG:', cfg)
         print('INPUT:', input)

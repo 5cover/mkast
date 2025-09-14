@@ -1,8 +1,9 @@
 # tests/test_cli.py
+from heapq import merge
 import io
 import argparse as ap
 import pathlib
-from typing import Any
+from typing import Any, Mapping
 import pydantic
 import pytest
 from mkast import cfg
@@ -19,6 +20,15 @@ class FakeConfig(cfg.FileConfig):
     # Capture what config_from_args fed into model_validate
     last_input: dict | None = None
 
+    def merge(self, new: cfg.Config):
+        # Accumulate the origin of each loaded config into `seen`
+        assert isinstance(new, FakeConfig)
+        return FakeConfig(
+            seen=[*self.seen, new.origin] if new.origin else [*self.seen],
+            # carry over last extends just to keep loop logic happy
+            extends=new.extends,
+        )
+
     @classmethod
     def model_validate(cls, obj: Any,         *,
                        strict: bool | None = None,
@@ -31,6 +41,13 @@ class FakeConfig(cfg.FileConfig):
         # Only keep fields this fake model knows about
         fields = {k: v for k, v in obj.items() if k in cls.model_fields}
         return cls(**fields)
+
+
+def fn_fake_read_config_file(extends_map: Mapping[str, str | None]):
+    def fake_read_config_file(path: pathlib.Path):
+        spath = str(pathlib.Path(path).resolve())
+        return FakeConfig(extends=extends_map[spath], origin=spath, seen=[spath])
+    return fake_read_config_file
 
 
 def test_prop_ok_basic():
@@ -88,24 +105,10 @@ def test_resolve_config_relative_chain(monkeypatch, tmp_path):
         str(file_c.resolve()): None,
     }
 
-    def fake_load_cfg_file(path: pathlib.Path):
-        path = pathlib.Path(path).resolve()
-        return FakeConfig(extends=extends_map[str(path)], origin=str(path))
-
-    def fake_merge_cfg(cfg: FakeConfig, cfgF: FakeConfig) -> FakeConfig:
-        # Accumulate the origin of each loaded config into `seen`
-        return FakeConfig(
-            seen=[*cfg.seen, cfgF.origin] if cfgF.origin else [*cfg.seen],
-            # carry over last extends just to keep loop logic happy
-            extends=cfgF.extends,
-        )
-
     monkeypatch.setattr(cli, "Config", FakeConfig)
-    monkeypatch.setattr(cli, "load_cfg_file", fake_load_cfg_file)
-    monkeypatch.setattr(cli, "merge_cfg", fake_merge_cfg)
+    monkeypatch.setattr(cli, "read_config_file", fn_fake_read_config_file(extends_map))
 
-    start_cfg = FakeConfig()
-    out = cli.resolve_config(start_cfg, file_a.resolve())
+    out = cli.read_config(file_a.resolve())
     assert isinstance(out, FakeConfig)
 
     assert out.seen == [str(file_a.resolve()), str(file_b.resolve()), str(file_c.resolve())]
@@ -125,21 +128,10 @@ def test_resolve_config_cycle_breaks(monkeypatch, tmp_path):
         str(file_b.resolve()): "config.yaml",  # cycle
     }
 
-    def fake_load_cfg_file(path: pathlib.Path):
-        path = pathlib.Path(path).resolve()
-        return FakeConfig(extends=extends_map[str(path)], origin=str(path))
-
-    def fake_merge_cfg(cfg: FakeConfig, cfgF: FakeConfig) -> FakeConfig:
-        return FakeConfig(
-            seen=[*cfg.seen, cfgF.origin] if cfgF.origin else [*cfg.seen],
-            extends=cfgF.extends,
-        )
-
     monkeypatch.setattr(cli, "Config", FakeConfig)
-    monkeypatch.setattr(cli, "load_cfg_file", fake_load_cfg_file)
-    monkeypatch.setattr(cli, "merge_cfg", fake_merge_cfg)
+    monkeypatch.setattr(cli, "read_config_file", fn_fake_read_config_file(extends_map))
 
-    out = cli.resolve_config(FakeConfig(), file_a.resolve())
+    out = cli.read_config(file_a.resolve())
     # Should process A then B, then stop due to visited set
     assert isinstance(out, FakeConfig)
     assert out.seen == [str(file_a.resolve()), str(file_b.resolve())]

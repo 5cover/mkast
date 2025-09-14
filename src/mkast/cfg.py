@@ -29,6 +29,12 @@ class Config(pydantic.BaseModel):
     imports: Sequence[str] = []
     modifiers: dict[ModifierKey, Modifier] = {}
 
+    def merge(self, new: 'Config'):
+        return _deep_merge(self, new)
+    
+    def __add__(self, new: 'Config'):
+        return self.merge(new)
+
 
 def _normalize[Abstract, Concrete](obj: Abstract, cls: Callable[[Abstract], Concrete]) -> Concrete:
     return obj if isclass(cls) and isinstance(obj, cast(type[Concrete], cls)) else cls(obj)
@@ -58,10 +64,6 @@ def _deep_merge[T](base: T, new: T) -> T:
         assert isinstance(new, Sequence) and not isinstance(new, (str, bytes))
         return cast(T, _normalize(base, list) + _normalize(new, list))
     return new
-
-def merge_cfg(base: Config, new: Config) -> Config:
-    return _deep_merge(base, new)
-
 
 class FileConfig(Config):
     extends: str | None = None
