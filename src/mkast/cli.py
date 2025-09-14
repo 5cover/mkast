@@ -1,6 +1,7 @@
 from typing import IO
 import pydantic
-from .cfg import FileConfig, load_config
+
+from .cfg import FileConfig, read_config
 from .domain import AstUnionNode, Config, Emitter
 from .mkast import get_emitter
 import argparse as ap
@@ -48,20 +49,10 @@ def config_from_args(args: ap.Namespace) -> Config:
     return Config.model_validate({k: v for k, v in vars(args).items() if v is not None})
 
 
-def read_config(filename: pathlib.Path) -> Config:
-    visited = set()
-    cfg = None
-    cfgF = None
-    while not cfg or not cfgF or (cfgF.extends and (filename := (filename.parent / cfgF.extends).resolve()) not in visited):
-        visited.add(filename)
-        cfgF = read_config_file(filename)
-        cfg = cfg + cfgF if cfg else cfgF
-    return cfg
-
-def read_config_file(filename: pathlib.Path) -> FileConfig:
+def read_config_file(filename: str | pathlib.Path) -> FileConfig:
     try:
         with open(filename) as f:
-            return load_config(f)
+            return FileConfig.model_validate(yaml.safe_load(f))
     except OSError as e:
         print(f"warning: couldn't read config file '{filename}': {e}", file=sys.stderr)
     except pydantic.ValidationError as e:
@@ -87,7 +78,7 @@ def parse_args() -> tuple[Config, AstUnionNode, Emitter]:
         exit()
     cfg = config_from_args(args)
     if args.config:
-        cfg += read_config(pathlib.Path(args.config))
+        cfg += read_config(pathlib.Path(args.config), read_config_file)
     try:
         input_cfg, input = load_input(ap.FileType()(str(cfg.input) if cfg.input else '-'))
     except pydantic.ValidationError as e:

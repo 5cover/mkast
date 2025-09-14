@@ -1,7 +1,5 @@
 from inspect import isclass
 import pathlib
-import sys
-import yaml
 import pydantic
 from typing import IO, Literal, cast
 from collections.abc import Callable, Sequence, Set, Mapping
@@ -69,5 +67,13 @@ class FileConfig(Config):
     extends: str | None = None
 
 
-def load_config(stream: IO) -> FileConfig:
-    return FileConfig.model_validate(yaml.safe_load(stream))
+def read_config(filename: str | pathlib.Path, read_config_file: Callable[[str | pathlib.Path], FileConfig | None]) -> Config:
+    visited = set()
+    cfg = None
+    cfgF = None
+    while not cfg or not cfgF or (cfgF.extends and (filename := (_normalize(filename, pathlib.Path).parent / cfgF.extends).resolve()) not in visited):
+        visited.add(filename)
+        if newCfg := read_config_file(filename):
+            cfgF = newCfg
+            cfg = cfg + cfgF if cfg else cfgF
+    return cfg

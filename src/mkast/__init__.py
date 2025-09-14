@@ -5,7 +5,7 @@ from .__version__ import __version__
 # load input files and  their config
 from .cli import load_input
 # load configs, config types
-from .cfg import load_config, Config, Modifier, ModifierKey
+from .cfg import read_config, Config, Modifier, ModifierKey
 # generate the ast, manage custom emitters
 from .mkast import generate_ast, register_emitter, unregister_emitter, get_emitter
 # emitter type
