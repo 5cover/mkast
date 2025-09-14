@@ -1,6 +1,6 @@
 from typing import IO
 import pydantic
-from .cfg import load_cfg_file, merge_cfg
+from .cfg import FileConfig, load_config, merge_cfg
 from .domain import AstUnionNode, Config, Emitter
 from .mkast import get_emitter
 import argparse as ap
@@ -48,15 +48,25 @@ def config_from_args(args: ap.Namespace) -> Config:
     return Config.model_validate({k: v for k, v in vars(args).items() if v is not None})
 
 
-def resolve_config(cfg: Config, filename: pathlib.Path) -> Config:
+def read_config(filename: pathlib.Path) -> Config:
     visited = set()
+    cfg = None
     cfgF = None
-    while not cfgF or (cfgF.extends and (filename := (filename.parent / cfgF.extends).resolve()) not in visited):
+    while not cfg or not cfgF or (cfgF.extends and (filename := (filename.parent / cfgF.extends).resolve()) not in visited):
         visited.add(filename)
-        cfgF = load_cfg_file(filename)
-        cfg = merge_cfg(cfg, cfgF)
+        cfgF = read_config_file(filename)
+        cfg = merge_cfg(cfg, cfgF) if cfg else cfgF
     return cfg
 
+def read_config_file(filename: pathlib.Path) -> FileConfig:
+    try:
+        with open(filename) as f:
+            return load_config(f)
+    except OSError as e:
+        print(f"warning: couldn't read config file '{filename}': {e}", file=sys.stderr)
+    except pydantic.ValidationError as e:
+        print(f"warning: invalid config '{filename}': {e}", file=sys.stderr)
+    return FileConfig()
 
 def load_input(stream: IO) -> tuple[Config | None, AstUnionNode]:
     docs = tuple(yaml.safe_load_all(stream))
@@ -69,14 +79,15 @@ def load_input(stream: IO) -> tuple[Config | None, AstUnionNode]:
             raise ValueError(f"expected 1 or 2 documents, not {i}")
 
 
-def parse_args() -> tuple[Config, Emitter, AstUnionNode]:
+def parse_args() -> tuple[Config, AstUnionNode, Emitter]:
     p = make_parser()
     args = p.parse_args()
     if args.version:
         print(f'mkast {__version__}')
         exit()
     cfg = config_from_args(args)
-    cfg = resolve_config(cfg, pathlib.Path(args.config))
+    if args.config:
+        cfg = merge_cfg(cfg, read_config(pathlib.Path(args.config)))
     try:
         input_cfg, input = load_input(ap.FileType()(str(cfg.input) if cfg.input else '-'))
     except pydantic.ValidationError as e:
@@ -89,4 +100,5 @@ def parse_args() -> tuple[Config, Emitter, AstUnionNode]:
         print('CONFIG:', cfg)
         print('INPUT:', input)
         exit()
-    return cfg, get_emitter(cfg) or p.error(f"unknown target '{cfg.target}'"), input
+    # get the emitter early so we can error cleanly if it doesn't exist
+    return cfg, input, get_emitter(cfg) or p.error(f"unknown target '{cfg.target}'")

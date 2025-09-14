@@ -6,18 +6,35 @@ from .targets.csharp import CSharpEmitter
 from collections.abc import Iterable, Mapping, Set
 from typing import TypeGuard
 
-emitters = {
+_emitters: dict[str, type[Emitter]] = {
     'agnostic': AgnosticEmitter,
     'csharp': CSharpEmitter,
 }
 
 
 def get_emitter(cfg: Config) -> Emitter | None:
-    cls = emitters.get(cfg.target, None)
+    cls = _emitters.get(cfg.target, None)
     return None if cls is None else cls(cfg)
 
 
-def generate_ast(cfg: Config, emitter: Emitter, ast: AstUnionNode):
+def register_emitter(key: str, cls: type[Emitter]) -> type[Emitter]:
+    if key in _emitters:
+        raise ValueError('emitter already exists at', key, _emitters[key])
+    _emitters[key] = cls
+    return cls
+
+
+def unregister_emitter(key: str) -> type[Emitter] | None:
+    e = _emitters.get(key)
+    if e is not None:
+        del _emitters[key]
+    return e
+
+
+def generate_ast(cfg: Config, ast: AstUnionNode, emitter: Emitter | None = None):
+    if emitter is None:
+        if (emitter := get_emitter(cfg)) is None:
+            raise ValueError('no emitter registered for this target language', cfg.target)
     root_node_info = None if cfg.root is None else NodeInfo(cfg.root, NodeKind.Union)
     lvl = emitter.intro()
     for name, node in ast.items():

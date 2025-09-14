@@ -111,9 +111,9 @@ In the agnostic language, snake_case is used and expected as input.
 
 ## TODO
 
-- [ ] merge complex configs values from different sources
-  - [ ] imports
-  - [ ] modifiers
+- [x] merge complex configs values from different sources
+  - [x] imports
+  - [x] modifiers
 
 - [ ] instead of visiting on the fly, build a data structure and revisit. this means we'll be able to query the properties and subnodes of a node when generating it, which will allow for:
   - [ ] smarter code generation (semi-colon body)

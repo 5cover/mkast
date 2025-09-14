@@ -3,7 +3,7 @@ import pathlib
 import sys
 import yaml
 import pydantic
-from typing import Literal, cast
+from typing import IO, Literal, cast
 from collections.abc import Callable, Sequence, Set, Mapping
 
 ModifierKey = Literal['', '?', '+', '*']
@@ -67,13 +67,5 @@ class FileConfig(Config):
     extends: str | None = None
 
 
-def load_cfg_file(filename: str | pathlib.Path) -> FileConfig:
-    try:
-        with open(filename) as f:
-            raw = yaml.safe_load(f)
-        return FileConfig.model_validate(raw)
-    except OSError as e:
-        print(f"warning: couldn't read config file '{filename}': {e}", file=sys.stderr)
-    except pydantic.ValidationError as e:
-        print(f"warning: invalid config '{filename}': {e}", file=sys.stderr)
-    return FileConfig()
+def load_config(stream: IO) -> FileConfig:
+    return FileConfig.model_validate(yaml.safe_load(stream))
