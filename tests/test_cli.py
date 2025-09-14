@@ -44,8 +44,8 @@ class FakeConfig(cfg.FileConfig):
 
 
 def fn_fake_read_config_file(extends_map: Mapping[str, str | None]):
-    def fake_read_config_file(path: pathlib.Path):
-        spath = str(pathlib.Path(path).resolve())
+    def fake_read_config_file(path: str | pathlib.Path):
+        spath = str((path if isinstance(path, pathlib.Path) else pathlib.Path(path)).resolve())
         return FakeConfig(extends=extends_map[spath], origin=spath, seen=[spath])
     return fake_read_config_file
 
@@ -106,9 +106,7 @@ def test_resolve_config_relative_chain(monkeypatch, tmp_path):
     }
 
     monkeypatch.setattr(cli, "Config", FakeConfig)
-    monkeypatch.setattr(cli, "read_config_file", fn_fake_read_config_file(extends_map))
-
-    out = cli.read_config(file_a.resolve())
+    out = cli.read_config(file_a.resolve(), fn_fake_read_config_file(extends_map))
     assert isinstance(out, FakeConfig)
 
     assert out.seen == [str(file_a.resolve()), str(file_b.resolve()), str(file_c.resolve())]
@@ -129,9 +127,8 @@ def test_resolve_config_cycle_breaks(monkeypatch, tmp_path):
     }
 
     monkeypatch.setattr(cli, "Config", FakeConfig)
-    monkeypatch.setattr(cli, "read_config_file", fn_fake_read_config_file(extends_map))
 
-    out = cli.read_config(file_a.resolve())
+    out = cli.read_config(file_a.resolve(), fn_fake_read_config_file(extends_map))
     # Should process A then B, then stop due to visited set
     assert isinstance(out, FakeConfig)
     assert out.seen == [str(file_a.resolve()), str(file_b.resolve())]
