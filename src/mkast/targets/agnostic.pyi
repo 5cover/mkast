@@ -1,0 +1,6 @@
+from ..domain import Emitter as Emitter, NodeInfo as NodeInfo, NodeKind as NodeKind
+from collections.abc import Mapping
+
+class AgnosticEmitter(Emitter):
+    def intro(self) -> int: ...
+    def enter_node(self, lvl: int, parent: NodeInfo | None, node: NodeInfo, implements: Mapping[str, NodeKind], props: Mapping[str, str]): ...

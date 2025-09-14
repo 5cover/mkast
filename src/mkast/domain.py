@@ -25,9 +25,13 @@ class NodeInfo:
 class Emitter(ABC):
     def __init__(self, cfg: Config):
         self.__cfg = cfg
+        self.__code = ''
 
     @property
     def cfg(self): return self.__cfg
+
+    @property
+    def code(self): return self.__code
 
     def intro(self) -> int:
         """
@@ -43,11 +47,18 @@ class Emitter(ABC):
                    parent: NodeInfo | None,
                    node: NodeInfo,
                    implements: Mapping[str, NodeKind],
-                   props: Mapping[str, str]): pass
+                   props: Mapping[str, str]) -> None: pass
 
-    def exit_node(self, lvl: int): pass
+    def exit_node(self, lvl: int) -> None: pass
 
-    def conclusion(self): pass
+    def conclusion(self) -> None: pass
+
+    # Protected methods
+
+    def write(self, s: str = '', lvl = 0, *, end = '\n') -> None:
+        self.__code += lvl * 4 * ' ' + s + end
+
+
 
 
 def is_do_not_touch(s: str) -> bool:

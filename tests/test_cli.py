@@ -1,9 +1,9 @@
 # tests/test_cli.py
-from heapq import merge
+from collections.abc import Mapping
 import io
 import argparse as ap
 import pathlib
-from typing import Any, Mapping
+from typing import Any
 import pydantic
 import pytest
 from mkast import cfg

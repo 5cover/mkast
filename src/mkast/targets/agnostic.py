@@ -1,5 +1,5 @@
 from ..domain import Emitter, NodeInfo, NodeKind
-from ..util import println, csl, cslq
+from ..util import concat, csl, cslq
 
 from collections.abc import Mapping
 from itertools import chain
@@ -23,12 +23,12 @@ class AgnosticEmitter(Emitter):
         if reserved_props := props & self.cfg.common_props.keys():
             raise ValueError(f"reserved property names in '{node.name}': {cslq(reserved_props)}")
 
-        println(
-            lvl,
-            parent.name + ' >' if parent else '',
-            node.kind.value, node.name,
-            ': ' + csl(implements) if implements else ''
+        self.write(
+            concat(parent and parent.name + ' >',
+                   node.kind.value, node.name,
+                   implements and ': ' + csl(implements)),
+            lvl
         )
 
         for propName, propType in chain(props.items(), self.cfg.common_props.items()):
-            println(lvl + 1, f'{propName} : {propType}')
+            self.write(f'{propName} : {propType}', lvl + 1)

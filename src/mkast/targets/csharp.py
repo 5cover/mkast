@@ -1,6 +1,6 @@
 from ..cfg import Modifier, ModifierKey
 from ..domain import Config, Emitter, NodeInfo, NodeKind, camelize, pascalize, get_dont_touch_me
-from ..util import println, csl, cslq, remove_prefix, sub
+from ..util import csl, cslq, remove_prefix, sub
 
 from collections.abc import Callable, Iterable, Mapping
 from itertools import chain
@@ -46,18 +46,18 @@ class CSharpEmitter(Emitter):
     def intro(self):
         if self.usings:
             for using in sorted(self.usings):
-                print(f'using {using};')
-            print()
+                self.write(f'using {using};')
+            self.write()
 
         if self.cfg.namespace:
-            print(f'namespace {self.cfg.namespace};')
-            print()
+            self.write(f'namespace {self.cfg.namespace};')
+            self.write()
 
         if not self.cfg.root:
             return 0
 
-        print(sub(self.node_kinds[NodeKind.Union], 1, pascalize(self.cfg.root)))
-        print('{')
+        self.write(sub(self.node_kinds[NodeKind.Union], 1, pascalize(self.cfg.root)))
+        self.write('{')
         for p in self.cfg.common_props.items():
             self.put_prop(1, self.cfg.root, *p)
         return 1
@@ -77,28 +77,28 @@ class CSharpEmitter(Emitter):
 
         nk = self.node_kinds[node.kind]
         is_record = re.search(r'\brecord\b', nk) is not None
-        println(lvl, sub(nk, 1, pascalize(node.name)), end='')
+        self.write(sub(nk, 1, pascalize(node.name)), lvl, end='')
 
         # primary constructor arguments
         if node.kind is NodeKind.Product and props and not need_explicit_constructor:
-            print(f'({csl(map(self.argument(pascalize if is_record else camel_ident), props.items()))})', end='')
+            self.write(f'({csl(map(self.argument(pascalize if is_record else camel_ident), props.items()))})', end='')
 
         # base types list
-        print(base_type_list((parent.name,) + tuple(implements.keys())
+        self.write(base_type_list((parent.name,) + tuple(implements.keys())
                              if parent and parent.kind is NodeKind.Union else
                              implements), end='')
 
-        print()
-        println(lvl, '{')
+        self.write()
+        self.write( '{', lvl)
 
         lvl += 1
         if (not is_record or need_explicit_constructor) and node.kind is NodeKind.Product and props:
             if need_explicit_constructor:
-                println(lvl, f'public {pascalize(node.name)}({csl(map(self.argument(camel_ident), props.items()))})')
-                println(lvl, '{')
+                self.write(f'public {pascalize(node.name)}({csl(map(self.argument(camel_ident), props.items()))})', lvl)
+                self.write('{', lvl)
                 for p in props.items():
                     self.put_assignment(lvl + 1, *p)
-                println(lvl, '}')
+                self.write('}', lvl)
                 for p in props.items():
                     self.put_prop(lvl, node.name, *p, 'public')
             else:
@@ -107,24 +107,24 @@ class CSharpEmitter(Emitter):
                     self.put_prop(lvl, node.name, *p, 'public', True)
 
     def exit_node(self, lvl: int):
-        println(lvl, '}')
+        self.write('}', lvl)
 
     def conclusion(self):
         if self.cfg.root:
-            print('}')
+            self.write('}')
 
     def argument(self, name_transformer: Callable[[str], str]):
         return lambda prop: f'{self.real_type(prop[1])} {name_transformer(prop[0])}'
 
     def put_assignment(self, lvl: int, name: str, type: str):
         if val_expr := self.validation_expr(camel_ident(name), type):
-            println(lvl, sub(self.assert_, 1, val_expr))
-        println(lvl, f'{pascalize(name)} = {camel_ident(name)};')
+            self.write(sub(self.assert_, 1, val_expr), lvl)
+        self.write(f'{pascalize(name)} = {camel_ident(name)};', lvl)
 
     def put_prop(self, lvl: int, owner: str, name: str, type: str, access: str = '', put_init: bool = False):
         access = access + ' ' if access else ''
         init = ' = ' + camel_ident(name) + ';' if put_init else ''
-        println(lvl, f'{access}{self.real_type(remove_prefix(owner + ".", type))} {pascalize(name)} {{ get; }}{init}')
+        self.write(f'{access}{self.real_type(remove_prefix(owner + ".", type))} {pascalize(name)} {{ get; }}{init}', lvl)
 
     def real_type(self, type: str) -> str:
         if type[-1] not in self.modifiers:

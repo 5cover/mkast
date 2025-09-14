@@ -1,10 +1,12 @@
 from collections.abc import Iterable
 
-
-def println(lvl: int, *args, **kwargs):
-    print(lvl * 4 * ' ', end='')
-    print(*args, **kwargs)
-
+def concat(*args: object, sep = ' ') -> str:
+    s: str = ''
+    for arg in args:
+        if arg:
+            s += sep
+            s += str(arg)
+    return s
 
 def remove_prefix(prefix: str, s: str) -> str:
     """

@@ -5,4 +5,4 @@ from .cli import parse_args
 
 def main():
     cfg, ast, emitter = parse_args()
-    generate_ast(cfg, ast, emitter)
+    print(generate_ast(cfg, ast, emitter))

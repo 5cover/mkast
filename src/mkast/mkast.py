@@ -40,6 +40,7 @@ def generate_ast(cfg: Config, ast: AstUnionNode, emitter: Emitter | None = None)
     for name, node in ast.items():
         walk(emitter, lvl, root_node_info, ast, name, node)
     emitter.conclusion()
+    return emitter.code
 
 
 def walk(emitter: Emitter,
