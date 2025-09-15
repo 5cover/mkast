@@ -1,5 +1,8 @@
 # mkast
 
+> [WARNING]
+> If you're installing from NPM, you'll need to install dependencies manually with: `npx mkast-init`.
+
 [![PyPI version](https://badge.fury.io/py/mkast.svg)](https://badge.fury.io/py/mkast)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/mkast)
 [![License: Unlicense](https://img.shields.io/badge/License-Unlicense-yellow.svg)](https://opensource.org/license/Unlicense)

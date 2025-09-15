@@ -6,13 +6,8 @@ description = "AST generator"
 readme = "README.md"
 requires-python = ">=3.7"
 authors = [{ name = "5cover", email = "thediscover22450@gmail.com" }]
-classifiers = [
-    "Programming Language :: Python :: 3"
-]
-dependencies = [
-    "pydantic>=2",
-    "PyYAML>=6",
-]
+classifiers = ["Programming Language :: Python :: 3"]
+dependencies = ["pydantic>=2", "PyYAML>=6"]
 
 [project.scripts]
 mkast = "mkast.__main__:main"
@@ -35,7 +30,7 @@ mypy_path = "src"
 ignore_missing_imports = true
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -44,7 +39,6 @@ exclude = ["tests*", "test*"]
 
 [tool.setuptools.package-data]
 mkast = ["schemas/*.json", "py.typed"]
-
 
 
 [tool.isort]

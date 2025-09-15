@@ -1,0 +1,32 @@
+{
+  "name": "@5cover/mkast",
+  "version": "2.0.1",
+  "description": "AST generator (Python)",
+  "homepage": "https://github.com/5cover/mkast#readme",
+  "bugs": {
+    "url": "https://github.com/5cover/mkast/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/5cover/mkast.git"
+  },
+  "files": [
+    "src/**/*.py",
+    "src/**/*.json",
+    "requirements.txt"
+  ],
+  "keywords": [
+    "ast",
+    "parser",
+    "generator"
+  ],
+  "bin": {
+    "mkast": "./src/mkast/__main__.py",
+    "mkast-init": "pip install -r ./requirements.txt"
+  },
+  "license": "Unlicense",
+  "author": "5cover",
+  "scripts": {
+    "test": "pytest"
+  }
+}
